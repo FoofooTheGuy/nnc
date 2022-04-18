@@ -4,6 +4,9 @@
 
 #include <nnc/base.h>
 
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#define MAX(a,b) ((a)>(b)?(a):(b))
+
 #define u8 nnc_u8
 #define u16 nnc_u16
 #define u32 nnc_u32
@@ -33,6 +36,10 @@
 #define U64P(a) (* (u64 *) (a))
 
 #define TRY(expr) if((ret = ( expr )) != NNC_R_OK) return ret
+
+nnc_u16 nnc_bswap16(nnc_u16 a);
+nnc_u32 nnc_bswap32(nnc_u32 a);
+nnc_u64 nnc_bswap64(nnc_u64 a);
 
 typedef struct nnc_rstream nnc_rstream;
 #define read_at_exact nnc_read_at_exact

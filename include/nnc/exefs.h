@@ -1,7 +1,9 @@
 // vim: ft=c.doxygen
 #ifndef inc_nnc_exefs_h
 #define inc_nnc_exefs_h
-
+/** \file  exefs.h
+ *  \brief Functions relating to exefs.
+ *  \see   https://www.3dbrew.org/wiki/ExeFS */
 #include <nnc/read-stream.h>
 #include <nnc/crypto.h>
 #include <nnc/base.h>

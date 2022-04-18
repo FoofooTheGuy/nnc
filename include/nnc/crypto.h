@@ -1,5 +1,7 @@
 // vim: ft=c.doxygen
-
+/** \file   crypto.h
+ *  \brief  Functions relating to encryption, decryption and hashing
+ */
 #ifndef inc_nnc_crypto_h
 #define inc_nnc_crypto_h
 
@@ -10,7 +12,7 @@ NNC_START
 /** Buffer large enough to hold a sha256 hash. */
 typedef nnc_u8 nnc_sha256_hash[0x20];
 
-/** \brief          Hash a \ref rstream partly.
+/** \brief          Hash a \ref nnc_rstream partly.
  *  \param rs       Stream to hash.
  *  \param digest   Output digest.
  *  \param size     Amount of data to hash.
