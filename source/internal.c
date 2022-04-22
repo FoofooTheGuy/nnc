@@ -37,7 +37,7 @@ result nnc_read_exact(nnc_rstream *rs, u8 *data, u32 dsize)
 
 /* also contains implementations from in base.h */
 
-void nnc_parse_version(u16 ver, u16 *major, u16 *minor, u16 *patch)
+void nnc_parse_version(u16 ver, u8 *major, u8 *minor, u8 *patch)
 {
 	if(major) *major = (ver >> 10) & 0x3F;
 	if(minor) *minor = (ver >>  4) & 0x3F;

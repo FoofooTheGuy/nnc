@@ -59,7 +59,7 @@ int tmd_info_main(int argc, char *argv[])
 	if(nnc_read_tmd_chunk_records(NNC_RSP(&f), &tmd, curecords) != NNC_R_OK)
 		die("nnc_read_tmd_chunk_records() failed");
 
-	nnc_u16 major, minor, patch;
+	nnc_u8 major, minor, patch;
 	nnc_parse_version(tmd.title_ver, &major, &minor, &patch);
 
 	printf(

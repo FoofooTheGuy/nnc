@@ -5,8 +5,6 @@
 #ifndef inc_nnc_base_h
 #define inc_nnc_base_h
 
-#include <stdbool.h>
-
 #ifdef __cplusplus
 	#define NNC_START  extern "C" {
 	#define NNC_END    }
@@ -15,6 +13,7 @@
 	#define NNC_END
 #endif
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 NNC_START
@@ -61,7 +60,7 @@ enum nnc_tid_category {
  *  \param minor  (optional) Output minor version.
  *  \param patch  (optional) Output patch version.
  */
-void nnc_parse_version(nnc_u16 ver, nnc_u16 *major, nnc_u16 *minor, nnc_u16 *patch);
+void nnc_parse_version(nnc_u16 ver, nnc_u8 *major, nnc_u8 *minor, nnc_u8 *patch);
 
 /** \{
  *  \anchor tid
