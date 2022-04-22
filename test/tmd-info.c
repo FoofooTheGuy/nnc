@@ -16,14 +16,17 @@ static const char *flags2str(nnc_u16 flags)
 {
 	static char buffer[0x100];
 	int pos = 0;
-#define ADD(flag, s) if(flags & (NNC_CHUNKF_##flag)) { strcpy(buffer + pos, s); pos += strlen(s); buffer[pos] = '\0'; }
+#define ADD(flag, s) if(flags & (NNC_CHUNKF_##flag)) { strcpy(buffer + pos, s ", "); pos += strlen(s); buffer[pos] = '\0'; }
 	ADD(ENCRYPTED, "encrypted")
 	ADD(DISC, "disc")
 	ADD(CFM, "CFM")
 	ADD(OPTIONAL, "optional")
 	ADD(SHARED, "shared")
 #undef ADD
-	return pos == 0 ? "none" : buffer;
+	if(pos == 0) return "none";
+	/* trim final comma+space */
+	buffer[pos - 2] = '\0';
+	return buffer;
 }
 
 static const char *get_assumed_purpose(nnc_u16 index)

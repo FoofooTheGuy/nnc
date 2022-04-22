@@ -11,6 +11,7 @@
 #define u16 nnc_u16
 #define u32 nnc_u32
 #define u64 nnc_u64
+#define u128 nnc_u128
 
 #define i8 nnc_i8
 #define i16 nnc_i16

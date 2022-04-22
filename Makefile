@@ -1,11 +1,11 @@
 
-SOURCES  := source/read-stream.c source/exefs.c source/internal.c source/crypto.c source/sigcert.c source/tmd.c
+SOURCES  := source/read-stream.c source/exefs.c source/internal.c source/crypto.c source/sigcert.c source/tmd.c source/u128.c
 CFLAGS   ?= -ggdb3 -Wall -Wextra
 TARGET   := libnnc.a
 BUILD    := build
 LIBS     := -lmbedcrypto
 
-TEST_SOURCES  := test/main.c test/extract-exefs.c test/tmd-info.c
+TEST_SOURCES  := test/main.c test/extract-exefs.c test/tmd-info.c test/u128.c
 TEST_TARGET   := nnc-test
 LDFLAGS       ?=
 

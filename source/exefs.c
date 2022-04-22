@@ -22,10 +22,10 @@ result nnc_read_exefs_header(nnc_rstream *rs, nnc_exefs_file_header *headers,
 		TRY(read_at_exact(rs, 0x0, data, sizeof(data)));
 		for(; i < NNC_EXEFS_MAX_FILES && cur[0] != '\0'; ++i, cur = &data[0x10 * i])
 		{
-			memcpy(headers[i].name, cur, 8);
-			headers[i].name[8] = '\0';
-			headers[i].offset = LE32P(&cur[0x8]);
-			headers[i].size = LE32P(&cur[0xC]);
+			/* 0x00 */ memcpy(headers[i].name, cur, 8);
+			/* 0x00 */ headers[i].name[8] = '\0';
+			/* 0x08 */ headers[i].offset = LE32P(&cur[0x8]);
+			/* 0x0C */ headers[i].size = LE32P(&cur[0xC]);
 		}
 		headers[i].name[0] = '\0';
 	}
