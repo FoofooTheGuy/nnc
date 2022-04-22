@@ -19,6 +19,13 @@ typedef nnc_u8 nnc_sha256_hash[0x20];
  */
 nnc_result nnc_crypto_sha256_view(nnc_rstream *rs, nnc_sha256_hash digest, nnc_u32 size);
 
+/** \brief          Hash a buffer.
+ *  \param buf      Buffer to hash.
+ *  \param digest   Output digest.
+ *  \param size     Size of buffer.
+ */
+nnc_result nnc_crypto_sha256(const nnc_u8 *buf, nnc_sha256_hash digest, nnc_u32 size);
+
 NNC_END
 #endif
 

@@ -1,11 +1,11 @@
 
-SOURCES  := source/read-stream.c source/exefs.c source/internal.c source/crypto.c
+SOURCES  := source/read-stream.c source/exefs.c source/internal.c source/crypto.c source/sigcert.c source/tmd.c
 CFLAGS   ?= -ggdb3 -Wall -Wextra
 TARGET   := libnnc.a
 BUILD    := build
 LIBS     := -lmbedcrypto
 
-TEST_SOURCES  := test/main.c
+TEST_SOURCES  := test/main.c test/extract-exefs.c test/tmd-info.c
 TEST_TARGET   := nnc-test
 LDFLAGS       ?=
 
@@ -15,8 +15,7 @@ TEST_OBJECTS := $(foreach source,$(TEST_SOURCES),$(BUILD)/$(source:.c=.o))
 OBJECTS      := $(foreach source,$(SOURCES),$(BUILD)/$(source:.c=.o))
 SO_TARGET    := $(TARGET:.a=.so)
 DEPS         := $(OBJECTS:.o=.d)
-CFLAGS       += -Iinclude $(LIBS) -std=gnu99
-LDFLAGS      += $(LIBS)
+CFLAGS       += -Iinclude -std=gnu99
 
 .PHONY: all clean test shared run-test docs
 all: $(TARGET)
@@ -33,14 +32,14 @@ clean:
 -include $(DEPS)
 
 $(TEST_TARGET): $(TEST_OBJECTS) $(TARGET)
-	$(CC) $^ -o $@ $(LDFLAGS)
+	$(CC) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 $(SO_TARGET): $(OBJECTS)
-	$(CC) -shared $^ -o $@ $(LDFLAGS)
+	$(CC) -shared $^ -o $@ $(LIBS)
 
 $(TARGET): $(OBJECTS)
 	$(AR) -rcs $@ $^
 
 build/%.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) -c $< -o $@ $(CFLAGS) -MMD -MF $(@:.o=.d)
+	$(CC) -c $< -o $@ $(CFLAGS) $(LIBS) -MMD -MF $(@:.o=.d)

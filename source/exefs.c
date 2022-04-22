@@ -24,8 +24,8 @@ result nnc_read_exefs_header(nnc_rstream *rs, nnc_exefs_file_header *headers,
 		{
 			memcpy(headers[i].name, cur, 8);
 			headers[i].name[8] = '\0';
-			headers[i].offset = LE32(U32P(&cur[0x8]));
-			headers[i].size = LE32(U32P(&cur[0xC]));
+			headers[i].offset = LE32P(&cur[0x8]);
+			headers[i].size = LE32P(&cur[0xC]);
 		}
 		headers[i].name[0] = '\0';
 	}
@@ -70,12 +70,7 @@ bool nnc_verify_file(nnc_rstream *rs, nnc_exefs_file_header *headers,
 {
 	nnc_sha256_hash hash;
 	nnc_seek_exefs_file(rs, &headers[i]);
-	result ret;
-	if((ret = nnc_crypto_sha256_view(rs, hash, headers[i].size)) != NNC_R_OK)
-	{
-		printf("fail, %i\n", ret);
-		return false;
-	}
+	TRYB(nnc_crypto_sha256_view(rs, hash, headers[i].size));
 	return memcmp(hash, hashes[i], sizeof(hash)) == 0;
 }
 

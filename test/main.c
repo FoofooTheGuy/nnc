@@ -1,59 +1,43 @@
 
-#include <nnc/read-stream.h>
-#include <nnc/exefs.h>
-#include <sys/stat.h>
-#include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
-static void die(const char *fmt, ...)
+#define DIE_USAGE() die("usage: [ extract-exefs | tmd-info ]")
+
+static const char *opt = "nnc-test";
+void die(const char *fmt, ...)
 {
 	va_list va;
 	va_start(va, fmt);
-	fprintf(stderr, "nnc-test: ");
+	fprintf(stderr, "%s: ", opt);
 	vfprintf(stderr, fmt, va);
 	fprintf(stderr, "\n");
 	va_end(va);
 	exit(1);
 }
 
+void print_hash(unsigned char *b)
+{
+	for(int i = 0; i < 0x20; ++i)
+		printf("%02X", b[i]);
+}
+
+
+int extract_exefs_main(int argc, char *argv[]); /* extract-exefs.c */
+int tmd_info_main(int argc, char *argv[]); /* tmd-info.c */
+
 int main(int argc, char *argv[])
 {
-	if(argc != 3) die("usage: %s <file> <output>", argv[0]);
-	const char *exefs_file = argv[1];
-	const char *outdir = argv[2];
-
-	mkdir(outdir, 0777);
-
-	nnc_file f;
-	if(nnc_file_open(&f, exefs_file) != NNC_R_OK)
-		die("f->open() failed");
-
-	nnc_exefs_file_header headers[NNC_EXEFS_MAX_FILES];
-	nnc_sha256_hash hashes[NNC_EXEFS_MAX_FILES];
-	if(nnc_read_exefs_header(NNC_RSP(&f), headers, hashes, NULL) != NNC_R_OK)
-		die("failed reading exefs file headers");
-
-	char pathbuf[128];
-	for(nnc_u8 i = 0; i < NNC_EXEFS_MAX_FILES && nnc_exefs_file_in_use(&headers[i]); ++i)
-	{
-		printf("%s/%s @ %08X [%08X] (", outdir, headers[i].name, headers[i].offset, headers[i].size);
-		for(nnc_u8 j = 0; j < sizeof(nnc_sha256_hash); ++j)
-			printf("%02X", hashes[i][j]);
-		printf(nnc_verify_file(NNC_RSP(&f), headers, hashes, i) ? " HASH OK" : " NOT OK");
-		printf(")\n");
-
-		nnc_seek_exefs_file(NNC_RSP(&f), &headers[i]);
-		nnc_u32 read_size;
-		nnc_u8 *buf = malloc(headers[i].size);
-		if(NNC_RS_CALL(f, read, buf, headers[i].size, &read_size) != NNC_R_OK || read_size != headers[i].size)
-			die("failed to extract exefs file %s", headers[i].name);
-		sprintf(pathbuf, "%s/%s", outdir, headers[i].name);
-		FILE *ef = fopen(pathbuf, "w");
-		if(fwrite(buf, headers[i].size, 1, ef) != 1)
-			die("failed to write exefs file %s to %s", headers[i].name, pathbuf);
-		fclose(ef);
-	}
-
-	NNC_RS_CALL(f, close);
+	if(argc < 2) DIE_USAGE();
+	const char *cmd = argv[1];
+	argv[1] = argv[0];
+	--argc;
+#define CASE(cmdn, func) if(strcmp(cmd, cmdn) == 0) do { opt = "nnc-test: " cmdn; return func(argc, &argv[1]); } while(0)
+	CASE("extract-exefs", extract_exefs_main);
+	CASE("tmd-info", tmd_info_main);
+#undef CASE
+	DIE_USAGE();
 }
 
