@@ -1,6 +1,7 @@
 
 #include <nnc/u128.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include "./internal.h"
 
@@ -52,21 +53,38 @@ u128 *nnc_u128_ror(u128 *a, u8 n)
 
 u128 *nnc_u128_add(u128 *a, const u128 *b)
 {
-	u64 carry;
 	u64 add = a->lo + b->lo;
-	/* overflow */
 	if(add < a->lo)
+		++a->hi;
+	a->hi += b->hi;
+	a->lo = add;
+	return a;
+}
+
+#define HALF (NNC_U128_LEN / 2)
+u128 nnc_u128_from_hex(const char *s)
+{
+	if(strncmp(s, "0x", 2) == 0)
+		s += 2;
+	int end = strlen(s);
+	if(end > NNC_U128_LEN)
+		return (u128) { 0, 0 };
+	u128 ret;
+	if(end > HALF)
 	{
-		a->lo = UINT64_MAX;
-		carry = add;
+		int cutoff = end - HALF;
+		char buf[HALF + 1];
+		buf[HALF] = '\0';
+		strncpy(buf, s, cutoff);
+		ret.lo = strtoull(s + cutoff, NULL, 16);
+		ret.hi = strtoull(buf, NULL, 16);
 	}
 	else
 	{
-		a->lo = add;
-		carry = 0;
+		ret.lo = strtoull(s, NULL, 16);
+		ret.hi = 0;
 	}
-	a->hi += b->hi + carry;
-	return a;
+	return ret;
 }
 
 void nnc_u128_bytes(const u128 *a, u8 bytes[0x10])
