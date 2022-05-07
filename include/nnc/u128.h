@@ -26,9 +26,6 @@ typedef struct nnc_u128 {
 /** Length of a u128 in hex without the "0x" prefix. */
 #define NNC_U128_LEN 0x20
 
-/** Parse a u128 from a hex string, optionally prefixed with "0x". */
-nnc_u128 nnc_u128_from_hex(const char *s);
-
 /** Xor a with b saving the result in a and returning the pointer. */
 nnc_u128 *nnc_u128_xor(nnc_u128 *a, const nnc_u128 *b);
 /** Add a with b saving the result in a and returning the pointer. */
@@ -39,6 +36,8 @@ nnc_u128 *nnc_u128_rol(nnc_u128 *a, nnc_u8 n);
 nnc_u128 *nnc_u128_ror(nnc_u128 *a, nnc_u8 n);
 /** Export the u128 as big-endian bytes */
 void nnc_u128_bytes(const nnc_u128 *a, nnc_u8 bytes[0x10]);
+/** Parse a u128 from a hex string, optionally prefixed with "0x". */
+nnc_u128 nnc_u128_from_hex(const char *s);
 
 NNC_END
 #endif

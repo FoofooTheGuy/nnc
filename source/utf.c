@@ -59,9 +59,11 @@ int nnc_utf16_to_utf8(u8 *out, int outlen, const u16 *in, int inlen)
 		else
 		{
 			u16 p2 = LE16(in[i + 1]);
-			u16 w1 = p1 & ~0xD800;
-			u16 w2 = p2 & ~0xDC00;
-			write_utf8(out, outlen, &outptr, (w1 << 16) | w2);
+			u16 w1 = p1 & 0x3FF;
+			u16 w2 = p2 & 0x3FF;
+			u32 cp = 0x10000 | (w1 << 10) | w2;
+			write_utf8(out, outlen, &outptr, cp);
+			++i; /* since we moved ahead 2 for the pair */
 		}
 	}
 	return outptr;

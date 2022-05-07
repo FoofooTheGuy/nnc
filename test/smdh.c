@@ -144,7 +144,6 @@ int smdh_main(int argc, char *argv[])
 	, ((nnc_u8 *) &smdh.eula_version)[1]
 	, smdh.optimal_animation_frame , smdh.cec_id);
 
-
 	NNC_RS_CALL(f, close);
 	return 0;
 }
