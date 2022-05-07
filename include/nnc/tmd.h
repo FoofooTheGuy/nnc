@@ -60,6 +60,7 @@ typedef struct nnc_chunk_record {
 	nnc_sha256_hash hash; ///< Hash of the content.
 } nnc_chunk_record;
 
+
 /** \brief      Read a TMD header from a stream.
  *  \param rs   Stream to read TMD from.
  *  \param tmd  Output TMD header.
@@ -94,7 +95,6 @@ nnc_result nnc_read_tmd_info_records(nnc_rstream *rs, nnc_tmd_header *tmd,
  *  \param records  Array of records gotten from one of the read functions.
  */
 bool nnc_verify_tmd_chunk_records(nnc_rstream *rs, nnc_tmd_header *tmd, nnc_cinfo_record *records);
-
 
 /** \brief          Reads chunks records from TMD.
  *  \param rs       Stream to read TMD from.

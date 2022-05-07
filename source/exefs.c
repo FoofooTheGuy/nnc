@@ -70,7 +70,7 @@ bool nnc_verify_file(nnc_rstream *rs, nnc_exefs_file_header *headers,
 {
 	nnc_sha256_hash hash;
 	nnc_seek_exefs_file(rs, &headers[i]);
-	TRYB(nnc_crypto_sha256_view(rs, hash, headers[i].size));
+	TRYB(nnc_crypto_sha256_part(rs, hash, headers[i].size));
 	return memcmp(hash, hashes[i], sizeof(hash)) == 0;
 }
 

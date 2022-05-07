@@ -6,7 +6,7 @@
 #define BLOCK_SZ 0x10000
 
 
-result nnc_crypto_sha256_view(nnc_rstream *rs, nnc_sha256_hash digest, u32 size)
+result nnc_crypto_sha256_part(nnc_rstream *rs, nnc_sha256_hash digest, u32 size)
 {
 	mbedtls_sha256_context ctx;
 	mbedtls_sha256_init(&ctx);

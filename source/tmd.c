@@ -94,7 +94,7 @@ bool nnc_verify_tmd_info_records(rstream *rs, nnc_tmd_header *tmd)
 
 	nnc_sha256_hash digest;
 	TRYB(NNC_RS_PCALL(rs, seek_abs, pos));
-	TRYB(nnc_crypto_sha256_view(rs, digest, CINFO_SIZE));
+	TRYB(nnc_crypto_sha256_part(rs, digest, CINFO_SIZE));
 	return memcmp(digest, tmd->hash, sizeof(digest)) == 0;
 }
 
@@ -110,7 +110,7 @@ bool nnc_verify_tmd_chunk_records(rstream *rs, nnc_tmd_header *tmd, nnc_cinfo_re
 		/* sizeof(chunk_record) = 0x30 */
 		u32 hash_size = records[i].count * 0x30;
 		nnc_sha256_hash digest;
-		TRYB(nnc_crypto_sha256_view(rs, digest, hash_size));
+		TRYB(nnc_crypto_sha256_part(rs, digest, hash_size));
 		if(memcmp(digest, records[i].hash, sizeof(digest)) != 0)
 			return false;
 	}

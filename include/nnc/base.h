@@ -38,7 +38,7 @@ enum nnc_result_codes {
 	NNC_R_TOO_SMALL,   ///< Reading yielded too little data.
 	NNC_R_TOO_LARGE,   ///< Input data too large.
 	NNC_R_INVALID_SIG, ///< Invalid signature type.
-	NNC_R_CORRUPT,     ///< Used if hashes don't match up.
+	NNC_R_CORRUPT,     ///< Used if hash or magic doesn't match up.
 };
 
 enum nnc_tid_category {
@@ -53,6 +53,7 @@ enum nnc_tid_category {
 	NNC_TID_CAT_DLC       = 0x8C,    ///< Exact DLC category (NNC_TID_CAT_DEMO | NNC_TID_CAT_AOC | NNC_TID_CAT_NO_EXE | NNC_TID_CAT_NOT_MOUNT).
 	NNC_TID_CAT_TWL       = 0x8000,  ///< TWL (DSi).
 };
+
 
 /** \brief        Parse a version int into the components major.minor.patch
  *  \param ver    Input version int.
