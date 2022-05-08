@@ -39,11 +39,11 @@ nnc_result nnc_read_exefs_header(nnc_rstream *rs, nnc_exefs_file_header *headers
  */
 nnc_i8 nnc_find_exefs_file_index(const char *name, nnc_exefs_file_header *headers);
 
-/** \brief         Seek to the data offset of a file header.
- *  \param rs      Stream to seek in.
- *  \param header  File to seek to
+/** \brief         Open a subview for a file.
+ *  \param rs      Stream to open in.
+ *  \param header  File to open.
  */
-void nnc_seek_exefs_file(nnc_rstream *rs, nnc_exefs_file_header *header);
+void nnc_exefs_subview(nnc_rstream *rs, nnc_subview *sv, nnc_exefs_file_header *header);
 
 /** \brief          Verify if an exefs file is good.
  *  \param rs       Stream to read exefs from.

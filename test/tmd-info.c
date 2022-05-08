@@ -127,7 +127,7 @@ int tmd_info_main(int argc, char *argv[])
 		puts("");
 	}
 
-	NNC_RS_CALL(f, close);
+	NNC_RS_CALL0(f, close);
 	return 0;
 }
 

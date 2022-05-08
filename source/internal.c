@@ -1,9 +1,15 @@
 
 #include <nnc/base.h>
-#include "./internal.h"
 #include <nnc/read-stream.h>
+#include <ctype.h>
+#include "./internal.h"
 
 
+#ifdef __GNUC__
+#define MKBSWAP(n) \
+	u##n nnc_bswap##n(u##n a) \
+	{ return __builtin_bswap##n(a); }
+#else
 static void bswap(u8 *r, u8 *n, u8 len)
 {
 	for(u8 i = 0; i < len; ++i)
@@ -11,8 +17,9 @@ static void bswap(u8 *r, u8 *n, u8 len)
 }
 
 #define MKBSWAP(n) \
-	uint##n##_t nnc_bswap##n(u##n a) \
+	u##n nnc_bswap##n(u##n a) \
 	{ u##n r; bswap((u8 *) &r, (u8 *) &a, n/8); return r; }
+#endif
 
 MKBSWAP(16)
 MKBSWAP(32)
@@ -74,5 +81,20 @@ void nnc_tid_set_unique_id(u64 *tid, u32 uniqid)
 void nnc_tid_set_variation(u64 *tid, u8 variation)
 {
 	((u8 *) (tid))[7] = variation;
+}
+
+void nnc_dumpmem(u8 *mem, u32 len)
+{
+	for(u32 i = 0; i < len; i += 0x10)
+	{
+		int row = MIN(0x10, len - i);
+		for(int j = 0; j < row; ++j)
+			printf("%02X ", mem[i + j]);
+		printf("%*s", (0x10 - row) * 3, "");
+		printf("| ");
+		for(int j = 0; j < row; ++j)
+			printf("%c", isgraph(mem[i + j]) ? mem[i + j] : '.');
+		puts("");
+	}
 }
 

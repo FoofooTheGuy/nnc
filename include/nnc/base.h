@@ -28,6 +28,9 @@ typedef int16_t nnc_i16; ///< 16-bit signed integer.
 typedef int32_t nnc_i32; ///< 32-bit signed integer.
 typedef int64_t nnc_i64; ///< 64-bit signed integer.
 
+typedef float nnc_f32;  ///< 32-bit signed float.
+typedef double nnc_f64; ///< 64-bit signed float.
+
 typedef nnc_u32 nnc_result; ///< Result type.
 
 enum nnc_result_codes {
@@ -39,6 +42,9 @@ enum nnc_result_codes {
 	NNC_R_TOO_LARGE,   ///< Input data too large.
 	NNC_R_INVALID_SIG, ///< Invalid signature type.
 	NNC_R_CORRUPT,     ///< Used if hash or magic doesn't match up.
+	NNC_R_NOMEM,       ///< Out of memory.
+	NNC_R_NOT_FOUND,   ///< Not found.
+	NNC_R_NOT_A_FILE,  ///< Not a file.
 };
 
 enum nnc_tid_category {

@@ -1,11 +1,11 @@
 
-SOURCES  := source/read-stream.c source/exefs.c source/internal.c source/crypto.c source/sigcert.c source/tmd.c source/u128.c source/utf.c source/smdh.c
+SOURCES  := source/read-stream.c source/exefs.c source/internal.c source/crypto.c source/sigcert.c source/tmd.c source/u128.c source/utf.c source/smdh.c source/romfs.c
 CFLAGS   ?= -ggdb3 -Wall -Wextra
 TARGET   := libnnc.a
 BUILD    := build
 LIBS     := -lmbedcrypto
 
-TEST_SOURCES  := test/main.c test/extract-exefs.c test/tmd-info.c test/u128.c test/smdh.c
+TEST_SOURCES  := test/main.c test/extract-exefs.c test/tmd-info.c test/u128.c test/smdh.c test/romfs.c
 TEST_TARGET   := nnc-test
 LDFLAGS       ?=
 
@@ -15,7 +15,7 @@ TEST_OBJECTS := $(foreach source,$(TEST_SOURCES),$(BUILD)/$(source:.c=.o))
 OBJECTS      := $(foreach source,$(SOURCES),$(BUILD)/$(source:.c=.o))
 SO_TARGET    := $(TARGET:.a=.so)
 DEPS         := $(OBJECTS:.o=.d)
-CFLAGS       += -Iinclude -std=gnu99
+CFLAGS       += -Iinclude -std=c99
 
 .PHONY: all clean test shared run-test docs
 all: $(TARGET)

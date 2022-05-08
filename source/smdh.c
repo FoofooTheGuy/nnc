@@ -1,11 +1,14 @@
 
 #include <nnc/smdh.h>
+#include <assert.h>
 #include <string.h>
 #include "./internal.h"
 
 
 result nnc_read_smdh(rstream *rs, nnc_smdh *smdh)
 {
+	assert(sizeof(smdh->titles) == 0x2000 && "smdh->titles was not properly packed");
+
 	u8 header[0x8];
 	u8 settings[0x30];
 	result ret;

@@ -91,7 +91,7 @@ typedef struct nnc_smdh {
 	nnc_u64 match_maker_bit_id;             ///< Match maker BIT ID.
 	nnc_u32 flags;                          ///< Flags, see \ref nnc_smdh_flags.
 	nnc_u16 eula_version;                   ///< EULA version, LE upper is major, lower is minor.
-	nnc_u32 optimal_animation_frame;        ///< Optimal animation default frame for BNR.
+	nnc_f32 optimal_animation_frame;        ///< Optimal animation default frame for BNR.
 	nnc_u32 cec_id;                         ///< CEC/Streetpass ID.
 } nnc_smdh;
 

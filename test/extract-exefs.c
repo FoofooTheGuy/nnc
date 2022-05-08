@@ -3,7 +3,6 @@
 #include <nnc/exefs.h>
 #include <sys/stat.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -51,7 +50,8 @@ int extract_exefs_main(int argc, char *argv[])
 			fname = headers[i].name;
 		}
 
-		nnc_seek_exefs_file(NNC_RSP(&f), &headers[i]);
+		nnc_subview sv;
+		nnc_exefs_subview(NNC_RSP(&f), &sv, &headers[i]);
 		nnc_u32 read_size;
 		nnc_u8 *buf = malloc(headers[i].size);
 		if(NNC_RS_CALL(f, read, buf, headers[i].size, &read_size) != NNC_R_OK || read_size != headers[i].size)
@@ -64,7 +64,7 @@ int extract_exefs_main(int argc, char *argv[])
 		fclose(ef);
 	}
 
-	NNC_RS_CALL(f, close);
+	NNC_RS_CALL0(f, close);
 	return 0;
 }
 

@@ -108,9 +108,9 @@ int smdh_main(int argc, char *argv[])
 	printf("== %s ==\n", smdh_file);
 
 	char
-		s[sizeof(smdh.titles[0].short_desc) + 1],
-		l[sizeof(smdh.titles[0].long_desc) + 1],
-		p[sizeof(smdh.titles[0].publisher) + 1];
+		s[sizeof(smdh.titles[0].short_desc) * 2 + 1],
+		l[sizeof(smdh.titles[0].long_desc) * 2 + 1],
+		p[sizeof(smdh.titles[0].publisher) * 2 + 1];
 
 	printf(" == Titles ==\n");
 	for(int i = 0; i < NNC_SMDH_TITLES; ++i)
@@ -135,16 +135,16 @@ int smdh_main(int argc, char *argv[])
 		" Match Maker BIT ID              : %016lX\n"
 		" Flags                           : %s\n"
 		" Eula Version                    : %04X (major=%i, minor=%i)\n"
-		" Optimal Animation Default Frame : %08X\n"
+		" Optimal Animation Default Frame : %f\n"
 		" CEC ID                          : %08X\n"
 	, smdh.version, get_game_ratings(smdh.game_ratings)
 	, get_lockout(smdh.lockout), smdh.match_maker_id
 	, smdh.match_maker_bit_id, get_flags(smdh.flags)
 	, smdh.eula_version, ((nnc_u8 *) &smdh.eula_version)[0]
 	, ((nnc_u8 *) &smdh.eula_version)[1]
-	, smdh.optimal_animation_frame , smdh.cec_id);
+	, smdh.optimal_animation_frame, smdh.cec_id);
 
-	NNC_RS_CALL(f, close);
+	NNC_RS_CALL0(f, close);
 	return 0;
 }
 

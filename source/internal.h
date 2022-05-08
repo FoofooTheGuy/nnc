@@ -47,17 +47,25 @@
 #define LE64P(a) LE64(U64P(a))
 
 #define TRYB(expr) if(( expr ) != NNC_R_OK) return false
+#define TRYV(expr) if(( expr ) != NNC_R_OK) return
 #define TRY(expr) if((ret = ( expr )) != NNC_R_OK) return ret
+
+#define ALIGN(a, n) (((a) + ((n) - 1)) & ~((n) - 1))
 
 nnc_u16 nnc_bswap16(nnc_u16 a);
 nnc_u32 nnc_bswap32(nnc_u32 a);
 nnc_u64 nnc_bswap64(nnc_u64 a);
 
+#ifndef inc_nnc_read_stream_h
 typedef struct nnc_rstream nnc_rstream;
+#endif
 #define read_at_exact nnc_read_at_exact
 result nnc_read_at_exact(nnc_rstream *rs, u32 offset, u8 *data, u32 dsize);
 #define read_exact nnc_read_exact
 result nnc_read_exact(nnc_rstream *rs, u8 *data, u32 dsize);
+#define dumpmem nnc_dumpmem
+/* for debugging */
+void nnc_dumpmem(u8 *mem, u32 len);
 
 #endif
 
