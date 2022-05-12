@@ -1,11 +1,11 @@
 
-SOURCES  := source/read-stream.c source/exefs.c source/internal.c source/crypto.c source/sigcert.c source/tmd.c source/u128.c source/utf.c source/smdh.c source/romfs.c
-CFLAGS   ?= -ggdb3 -Wall -Wextra
+SOURCES  := source/read-stream.c source/exefs.c source/internal.c source/crypto.c source/sigcert.c source/tmd.c source/u128.c source/utf.c source/smdh.c source/romfs.c source/ncch.c
+CFLAGS   ?= -ggdb3 -Wall -Wextra -pedantic
 TARGET   := libnnc.a
 BUILD    := build
 LIBS     := -lmbedcrypto
 
-TEST_SOURCES  := test/main.c test/extract-exefs.c test/tmd-info.c test/u128.c test/smdh.c test/romfs.c
+TEST_SOURCES  := test/main.c test/extract-exefs.c test/tmd-info.c test/u128.c test/smdh.c test/romfs.c test/boot9.c test/ncch.c
 TEST_TARGET   := nnc-test
 LDFLAGS       ?=
 
@@ -25,7 +25,7 @@ docs:
 	doxygen
 test: $(TARGET) $(TEST_TARGET)
 shared: CFLAGS += -fPIC
-shared: clean $(SO_TARGET)
+shared: clean $(SO_TARGET) # Clean because all objects need to be built with -fPIC
 clean:
 	rm -rf $(BUILD) $(TARGET) $(SO_TARGET)
 
@@ -35,7 +35,7 @@ $(TEST_TARGET): $(TEST_OBJECTS) $(TARGET)
 	$(CC) $^ -o $@ $(LDFLAGS) $(LIBS)
 
 $(SO_TARGET): $(OBJECTS)
-	$(CC) -shared $^ -o $@ $(LIBS)
+	$(CC) -shared $^ -o $@ $(LDFLAGS) $(LIBS)
 
 $(TARGET): $(OBJECTS)
 	$(AR) -rcs $@ $^

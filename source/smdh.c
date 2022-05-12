@@ -24,7 +24,8 @@ result nnc_read_smdh(rstream *rs, nnc_smdh *smdh)
 	/* 0x201C */ smdh->match_maker_id = LE32P(&settings[0x14]);
 	/* 0x2020 */ smdh->match_maker_bit_id = LE64P(&settings[0x18]);
 	/* 0x2028 */ smdh->flags = LE32P(&settings[0x20]);
-	/* 0x202C */ smdh->eula_version = LE16P(&settings[0x24]);
+	/* 0x202C */ smdh->eula_version_minor = settings[0x24];
+	/* 0x202C */ smdh->eula_version_major = settings[0x25];
 	/* 0x202E */ /* reserved */
 	/* 0x2030 */ smdh->optimal_animation_frame = LE32P(&settings[0x28]);
 	/* 0x2034 */ smdh->cec_id = LE32P(&settings[0x2C]);

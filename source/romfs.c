@@ -229,7 +229,7 @@ int nnc_romfs_next(nnc_romfs_iterator *it, nnc_romfs_info *ent)
 		if(it->next == INVAL)
 		{
 			it->next = it->dir->u.d.fchildren;
-			it->in_dir = 0;
+			it->in_dir = false;
 		}
 	}
 	else
@@ -252,12 +252,12 @@ nnc_romfs_iterator nnc_romfs_mkit(nnc_romfs_ctx *ctx, nnc_romfs_info *dir)
 	if(dir->u.d.dchildren == INVAL)
 	{
 		ret.next = dir->u.d.fchildren;
-		ret.in_dir = 0;
+		ret.in_dir = false;
 	}
 	else
 	{
 		ret.next = dir->u.d.dchildren;
-		ret.in_dir = 1;
+		ret.in_dir = true;
 	}
 	ret.ctx = ctx;
 	return ret;

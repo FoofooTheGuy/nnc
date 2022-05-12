@@ -2,6 +2,7 @@
 #include <nnc/read-stream.h>
 #include <nnc/romfs.h>
 #include <sys/stat.h>
+#include <inttypes.h>
 #include <nnc/utf.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,15 +51,15 @@ int romfs_main(int argc, char *argv[])
 	printf(
 		"== %s ==\n"
 		" == RomFS header ==\n"
-		"  Directory Hash Offset      : 0x%lX\n"
+		"  Directory Hash Offset      : 0x%" PRIX64 "\n"
 		"                 Length      : 0x%X\n"
-		"  Directory Metadata Offset  : 0x%lX\n"
+		"  Directory Metadata Offset  : 0x%" PRIX64 "\n"
 		"                     Length  : 0x%X\n"
-		"  File Hash Offset           : 0x%lX\n"
+		"  File Hash Offset           : 0x%" PRIX64 "\n"
 		"            Length           : 0x%X\n"
-		"  File Metadata Offset       : 0x%lX\n"
+		"  File Metadata Offset       : 0x%" PRIX64 "\n"
 		"                Length       : 0x%X\n"
-		"  Data Offset                : 0x%lX\n"
+		"  Data Offset                : 0x%" PRIX64 "\n"
 		" == RomFS files & directories ==\n"
 	, romfs_file, ctx.header.dir_hash.offset
 	, ctx.header.dir_hash.length, ctx.header.dir_meta.offset
@@ -69,6 +70,7 @@ int romfs_main(int argc, char *argv[])
 	nnc_romfs_info info;
 	if(nnc_get_info(&ctx, &info, "/") != NNC_R_OK)
 		die("failed root directory info");
+	puts(" /");
 	print_dir(&ctx, &info, 2);
 
 	nnc_free_romfs(&ctx);

@@ -8,7 +8,7 @@
 #include <nnc/read-stream.h>
 #include <nnc/crypto.h>
 #include <nnc/base.h>
-NNC_START
+NNC_BEGIN
 
 /** Maximum files an exefs has. */
 #define NNC_EXEFS_MAX_FILES 10

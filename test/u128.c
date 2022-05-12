@@ -11,7 +11,7 @@ void die(const char *fmt, ...);
 
 int u128_main(int argc, char *argv[])
 {
-	if(argc != 4) die("usage: %s <hex-a> <op> <hex-b>\n<op> may be '+', '^', 'rol' or 'ror'");
+	if(argc != 4) die("usage: %s <hex-a> <op> <hex-b>\n<op> may be '+', '^', 'rol' or 'ror'", argv[0]);
 	const nnc_u128 a_orig = nnc_u128_from_hex(argv[1]);
 	nnc_u128 a = a_orig;
 	nnc_u128 *(*op)(nnc_u128 *a, const nnc_u128 *b);
@@ -34,7 +34,7 @@ int u128_main(int argc, char *argv[])
 	printf("0x" NNC_FMT128 " %s 0x" NNC_FMT128 " = 0x" NNC_FMT128 "\n", NNC_ARG128(a_orig), argv[2], NNC_ARG128(b_orig), NNC_ARG128(a));
 	char pybuf[0x100];
 	sprintf(pybuf, "print(\"0x{0:032X}\".format(0x" NNC_FMT128 " %s 0x" NNC_FMT128 "))", NNC_ARG128(a_orig), argv[2], NNC_ARG128(b_orig));
-	printf("should be:                                                                ");
+	printf("should be:                                                                 ");
 	fflush(stdout);
 	execlp("python3", "python3", "-c", pybuf, NULL);
 	/* only reached if execlp failed */

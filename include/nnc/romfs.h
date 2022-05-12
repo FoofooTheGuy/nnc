@@ -7,7 +7,7 @@
 #define inc_nnc_romfs_h
 #include <nnc/read-stream.h>
 #include <nnc/base.h>
-NNC_START
+NNC_BEGIN
 
 typedef struct nnc_romfs_header {
 	struct nnc_romfs_header_oflen {
@@ -58,7 +58,7 @@ typedef struct nnc_romfs_iterator {
 	nnc_romfs_info *dir;
 	nnc_romfs_ctx *ctx;
 	nnc_u32 next;
-	int in_dir;
+	bool in_dir;
 } nnc_romfs_iterator;
 
 

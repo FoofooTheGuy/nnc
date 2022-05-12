@@ -1,5 +1,6 @@
 
 #include <nnc/read-stream.h>
+#include <inttypes.h>
 #include <nnc/tmd.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -73,8 +74,8 @@ int tmd_info_main(int argc, char *argv[])
 		"  TMD Version            : %02X\n"
 		"  CA CRL Version         : %02X\n"
 		"  Signer CRL Version     : %02X\n"
-		"  System version         : %016lX\n"
-		"  Title ID               : %016lX\n"
+		"  System version         : %016" PRIX64 "\n"
+		"  Title ID               : %016" PRIX64 "\n"
 		"  Title Type             : %08X\n"
 		"  Save Size              : %i KiB (%i bytes)\n"
 		"  SRL Private Save Size  : %i KiB (%i bytes)\n"
@@ -117,7 +118,7 @@ int tmd_info_main(int argc, char *argv[])
 			"    ID                   : %08X\n"
 			"    Index                : %04X\n"
 			"    Flags                : %s (%04X)\n"
-			"    Size                 : %li KiB (%016lX bytes)\n"
+			"    Size                 : %" PRIu64 " KiB (%016" PRIX64 " bytes)\n"
 			"    Hash                 : "
 		, i, get_assumed_purpose(curecords[i].index)
 		, curecords[i].id, curecords[i].index

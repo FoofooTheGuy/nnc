@@ -7,12 +7,12 @@
 
 #include <nnc/read-stream.h>
 #include <nnc/base.h>
-NNC_START
+NNC_BEGIN
 
 enum nnc_sigtype {
-	NNC_SIG_RSA_4096_SHA1   = 0, ///< RSA 4096 with SHA1. (unused)
-	NNC_SIG_RSA_2048_SHA1   = 1, ///< RSA 2048 with SHA1. (unused)
-	NNC_SIG_ECDSA_SHA1      = 2, ///< Elliptic Curve with SHA1. (unused)
+	NNC_SIG_RSA_4096_SHA1   = 0, ///< RSA 4096 with SHA1 (unused).
+	NNC_SIG_RSA_2048_SHA1   = 1, ///< RSA 2048 with SHA1 (unused).
+	NNC_SIG_ECDSA_SHA1      = 2, ///< Elliptic Curve with SHA1 (unused).
 	NNC_SIG_RSA_4096_SHA256 = 3, ///< RSA 4096 with SHA256.
 	NNC_SIG_RSA_2048_SHA256 = 4, ///< RSA 2048 with SHA256.
 	NNC_SIG_ECDSA_SHA256    = 5, ///< Elliptic Curve with SHA256.
@@ -21,7 +21,7 @@ enum nnc_sigtype {
 typedef struct nnc_signature {
 	enum nnc_sigtype type; ///< Signature type.
 	nnc_u8 data[0x200];    ///< Signature data (not always fully in use).
-	char issuer[0x41]; ///< Signature issuer (NULL-terminated).
+	char issuer[0x41];     ///< Signature issuer (NULL-terminated).
 } nnc_signature;
 
 /** \brief      Gets the signature size from the type.

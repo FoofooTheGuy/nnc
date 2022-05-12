@@ -1,6 +1,7 @@
 
 #include <nnc/read-stream.h>
 #include <nnc/smdh.h>
+#include <inttypes.h>
 #include <nnc/utf.h>
 #include <string.h>
 #include <stdio.h>
@@ -113,7 +114,7 @@ int smdh_main(int argc, char *argv[])
 		p[sizeof(smdh.titles[0].publisher) * 2 + 1];
 
 	printf(" == Titles ==\n");
-	for(int i = 0; i < NNC_SMDH_TITLES; ++i)
+	for(int i = 0; i < NNC_TITLE_MAX; ++i)
 	{
 		s[nnc_utf16_to_utf8((nnc_u8 *) s, sizeof(s), smdh.titles[i].short_desc, (sizeof(s) - 1) / 2)] = '\0';
 		l[nnc_utf16_to_utf8((nnc_u8 *) l, sizeof(l), smdh.titles[i].long_desc, (sizeof(l) - 1) / 2)] = '\0';
@@ -132,16 +133,15 @@ int smdh_main(int argc, char *argv[])
 		" Game Ratings                    : %s\n"
 		" Lockout                         : %s\n"
 		" Match Maker ID                  : %08X\n"
-		" Match Maker BIT ID              : %016lX\n"
+		" Match Maker BIT ID              : %016" PRIX64 "\n"
 		" Flags                           : %s\n"
-		" Eula Version                    : %04X (major=%i, minor=%i)\n"
+		" EULA Version                    : %i.%i\n"
 		" Optimal Animation Default Frame : %f\n"
 		" CEC ID                          : %08X\n"
 	, smdh.version, get_game_ratings(smdh.game_ratings)
 	, get_lockout(smdh.lockout), smdh.match_maker_id
 	, smdh.match_maker_bit_id, get_flags(smdh.flags)
-	, smdh.eula_version, ((nnc_u8 *) &smdh.eula_version)[0]
-	, ((nnc_u8 *) &smdh.eula_version)[1]
+	, smdh.eula_version_major, smdh.eula_version_minor
 	, smdh.optimal_animation_frame, smdh.cec_id);
 
 	NNC_RS_CALL0(f, close);

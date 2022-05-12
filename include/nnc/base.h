@@ -6,17 +6,22 @@
 #define inc_nnc_base_h
 
 #ifdef __cplusplus
-	#define NNC_START  extern "C" {
+	#define NNC_BEGIN extern "C" {
 	#define NNC_END    }
 #else
-	#define NNC_START
+	#define NNC_BEGIN
 	#define NNC_END
 #endif
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
-NNC_START
+NNC_BEGIN
+
+/** Media units to bytes. */
+#define NNC_MU_TO_BYTE(a) ((a) * NNC_MEDIA_UNIT)
+/** Amount of bytes in a media unit. */
+#define NNC_MEDIA_UNIT 0x200
 
 typedef uint8_t nnc_u8;   ///< 8-bit unsigned integer.
 typedef uint16_t nnc_u16; ///< 16-bit unsigned integer.
@@ -34,17 +39,23 @@ typedef double nnc_f64; ///< 64-bit signed float.
 typedef nnc_u32 nnc_result; ///< Result type.
 
 enum nnc_result_codes {
-	NNC_R_OK,          ///< Everything went fine.
-	NNC_R_FAIL_OPEN,   ///< Failed to open.
-	NNC_R_SEEK_RANGE,  ///< Invalid seek range.
-	NNC_R_FAIL_READ,   ///< Failed to read.
-	NNC_R_TOO_SMALL,   ///< Reading yielded too little data.
-	NNC_R_TOO_LARGE,   ///< Input data too large.
-	NNC_R_INVALID_SIG, ///< Invalid signature type.
-	NNC_R_CORRUPT,     ///< Used if hash or magic doesn't match up.
-	NNC_R_NOMEM,       ///< Out of memory.
-	NNC_R_NOT_FOUND,   ///< Not found.
-	NNC_R_NOT_A_FILE,  ///< Not a file.
+	NNC_R_OK,              ///< Everything went fine.
+	NNC_R_FAIL_OPEN,       ///< Failed to open.
+	NNC_R_SEEK_RANGE,      ///< Invalid seek range.
+	NNC_R_FAIL_READ,       ///< Failed to read.
+	NNC_R_TOO_SMALL,       ///< Reading yielded too little data.
+	NNC_R_TOO_LARGE,       ///< Input data too large.
+	NNC_R_INVALID_SIG,     ///< Invalid signature type.
+	NNC_R_CORRUPT,         ///< Used if hash or magic doesn't match up.
+	NNC_R_NOMEM,           ///< Out of memory.
+	NNC_R_NOT_FOUND,       ///< Not found.
+	NNC_R_NOT_A_FILE,      ///< Not a file.
+	NNC_R_KEY_NOT_FOUND,   ///< Key not found.
+	NNC_R_MISMATCH,        ///< Mismatch.
+	NNC_R_SEED_NOT_FOUND,  ///< Seed not found.
+	NNC_R_UNSUPPORTED_VER, ///< Unsupported version.
+	NNC_R_INVAL,           ///< Invalid parameter(s).
+	NNC_R_BAD_ALIGN,       ///< Bad alignment.
 };
 
 enum nnc_tid_category {

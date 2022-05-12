@@ -7,18 +7,18 @@
 
 #include <nnc/base.h>
 #include <stdio.h>
-NNC_START
+NNC_BEGIN
 
 /** \brief Call \ref nnc_rstream function on pointer. */
-#define NNC_RS_PCALL(obj, func, ...) (obj)->funcs->func((struct nnc_rstream *) (obj), __VA_ARGS__)
+#define NNC_RS_PCALL(obj, func, ...) ((nnc_rstream *) obj)->funcs->func((nnc_rstream *) (obj), __VA_ARGS__)
 /** \brief Call \ref nnc_rstream function. */
-#define NNC_RS_CALL(obj, func, ...) (obj).funcs->func((struct nnc_rstream *) &(obj), __VA_ARGS__)
+#define NNC_RS_CALL(obj, func, ...) NNC_RS_PCALL(&obj, func, __VA_ARGS__)
 /** \brief Cast stream-like type to \ref nnc_rstream pointer for passing to other functions. */
-#define NNC_RSP(obj) ((struct nnc_rstream *) (obj))
-/** \brief Call a \ref nnc_rstream function without arguments. */
-#define NNC_RS_CALL0(obj, func) (obj).funcs->func((struct nnc_rstream *) &(obj))
+#define NNC_RSP(obj) ((nnc_rstream *) (obj))
 /** \brief Call a \ref nnc_rstream function without arguments on a pointer. */
-#define NNC_RS_PCALL0(obj, func) (obj)->funcs->func((struct nnc_rstream *) (obj))
+#define NNC_RS_PCALL0(obj, func) ((nnc_rstream *) obj)->funcs->func((nnc_rstream *) (obj))
+/** \brief Call a \ref nnc_rstream function without arguments. */
+#define NNC_RS_CALL0(obj, func) NNC_RS_PCALL0(&obj, func)
 
 struct nnc_rstream;
 /** Read from stream. */
@@ -98,6 +98,7 @@ void nnc_mem_own_open(nnc_memory *self, void *ptr, nnc_u32 size);
  *  \param child  Child stream.
  *  \param off    Starting offset in \p child.
  *  \param len    Length of data in \p child.
+ *  \note         Closing this stream has no effect; the child stream is not closed.
  */
 void nnc_subview_open(nnc_subview *self, nnc_rstream *child, nnc_u32 off, nnc_u32 len);
 

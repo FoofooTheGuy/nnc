@@ -5,7 +5,7 @@
  *  \brief UTF conversion.
  */
 #include <nnc/base.h>
-NNC_START
+NNC_BEGIN
 
 /** \brief         Converts a UTF16 string to a UTF8 one.
  *  \note          The NULL terminator is never placed.

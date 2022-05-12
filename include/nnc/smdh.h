@@ -7,14 +7,19 @@
  */
 #include <nnc/read-stream.h>
 #include <nnc/base.h>
-NNC_START
+NNC_BEGIN
 
 /** Returns the minimum age rating if set and 0 otherwise. */
 #define NNC_RATING_MIN_AGE(a) (((a) & NNC_RATING_ACTIVE) ? ((a) - NNC_RATING_ACTIVE) : 0)
-/** Amount of titles in an SMDH. */
+/** \brief Amount of titles in an SMDH.
+ *  \note If you simply want to iterate over all titles in an SMDH
+ *        use \ref NNC_TITLE_MAX instead.
+ */
 #define NNC_SMDH_TITLES 0x10
 /** Amount of game ratings in an SMDH. */
 #define NNC_SMDH_RATINGS 0x10
+/** Pack the EULA of an SMDH header into one value for inequality checks. */
+#define NNC_EULA_PACK(smdh) ((smdh).eula_version_major * 0xFF + (smdh).eula_version_minor)
 
 enum nnc_title_lang {
 	NNC_TITLE_JAPANESE            = 0,  ///< Japanese.
@@ -29,6 +34,7 @@ enum nnc_title_lang {
 	NNC_TITLE_PORTUGUESE          = 9,  ///< Portuguese.
 	NNC_TITLE_RUSSIAN             = 10, ///< Russian
 	NNC_TITLE_TRADITIONAL_CHINESE = 11, ///< Traditional chinese.
+	NNC_TITLE_MAX                 = 12, ///< Maximum used languaged used for iterating.
 };
 
 enum nnc_region_lockout {
@@ -90,7 +96,8 @@ typedef struct nnc_smdh {
 	nnc_u32 match_maker_id;                 ///< Match maker ID.
 	nnc_u64 match_maker_bit_id;             ///< Match maker BIT ID.
 	nnc_u32 flags;                          ///< Flags, see \ref nnc_smdh_flags.
-	nnc_u16 eula_version;                   ///< EULA version, LE upper is major, lower is minor.
+	nnc_u16 eula_version_minor;             ///< EULA minor version.
+	nnc_u16 eula_version_major;             ///< EULA major version.
 	nnc_f32 optimal_animation_frame;        ///< Optimal animation default frame for BNR.
 	nnc_u32 cec_id;                         ///< CEC/Streetpass ID.
 } nnc_smdh;

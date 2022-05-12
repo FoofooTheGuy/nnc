@@ -106,7 +106,9 @@ int nnc_utf8_to_utf16(u16 *out, int outlen, const u8 *in, int inlen)
 	for(int i = 0; i < inlen; ++i)
 	{
 		u8 p1 = in[i];
-		if(p1 < 0x80)
+		if(p1 == '\0')
+			break; /* finished */
+		else if(p1 < 0x80)
 		{
 			write_utf16(out, outlen, &outptr, in[i]);
 			continue;

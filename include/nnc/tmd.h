@@ -10,7 +10,7 @@
 #include <nnc/sigcert.h>
 #include <nnc/crypto.h>
 #include <nnc/base.h>
-NNC_START
+NNC_BEGIN
 
 /** Returns if the info record is the last record. */
 #define NNC_CINFO_IS_LAST(record) ((record).count == 0)

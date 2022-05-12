@@ -167,14 +167,15 @@ static result subview_seek_rel(nnc_subview *self, u32 pos)
 	return NNC_R_OK;
 }
 
-static u32 subview_size(nnc_memory *self)
+static u32 subview_size(nnc_subview *self)
 {
 	return self->size;
 }
 
 static void subview_close(nnc_subview *self)
 {
-	NNC_RS_PCALL0(self->child, close);
+	/* nothing to do... */
+	(void) self;
 }
 
 static nnc_u32 subview_tell(nnc_subview *self)

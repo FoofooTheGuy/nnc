@@ -17,8 +17,9 @@ u128 *nnc_u128_rol(u128 *a, u8 n)
 {
 	if(n < 64)
 	{
-		u64 saved_hi = (a->hi & (UINT64_MAX << (64 - n))) >> (64 - n);
-		u64 saved_lo = (a->lo & (UINT64_MAX << (64 - n))) >> (64 - n);
+		/* save highest n as low to OR back in later */
+		u64 saved_hi = (a->hi & ~(UINT64_MAX >> n)) >> (64 - n);
+		u64 saved_lo = (a->lo & ~(UINT64_MAX >> n)) >> (64 - n);
 		a->hi <<= n;
 		a->lo <<= n;
 		a->hi |= saved_lo;
@@ -36,6 +37,7 @@ u128 *nnc_u128_ror(u128 *a, u8 n)
 {
 	if(n < 64)
 	{
+		/* save lowest n as high to OR back in later */
 		u64 saved_hi = (a->hi & ~(UINT64_MAX << n)) << (64 - n);
 		u64 saved_lo = (a->lo & ~(UINT64_MAX << n)) << (64 - n);
 		a->hi >>= n;
@@ -87,10 +89,16 @@ u128 nnc_u128_from_hex(const char *s)
 	return ret;
 }
 
-void nnc_u128_bytes(const u128 *a, u8 bytes[0x10])
+void nnc_u128_bytes_be(const u128 *a, u8 bytes[0x10])
 {
 	u64 *bytes64 = (u64 *) bytes;
 	bytes64[0] = BE64(a->hi);
 	bytes64[1] = BE64(a->lo);
+}
+
+u128 nnc_u128_import_be(nnc_u8 bytes[0x10])
+{
+	u64 *cast = (u64 *) bytes;
+	return (u128) { .hi = BE64(cast[0]), .lo = BE64(cast[1]) };
 }
 
