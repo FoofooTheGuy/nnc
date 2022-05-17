@@ -61,16 +61,14 @@ i8 nnc_find_exefs_file_index(const char *name, nnc_exefs_file_header *headers)
 
 void nnc_exefs_subview(nnc_rstream *rs, nnc_subview *sv, nnc_exefs_file_header *header)
 {
-	/* 0x200 = sizeof(header) */
-	nnc_subview_open(sv, rs, 0x200 + header->offset, header->size);
-	NNC_RS_PCALL(rs, seek_abs, 0x200 + header->offset);
+	nnc_subview_open(sv, rs, NNC_EXEFS_HEADER_SIZE + header->offset, header->size);
 }
 
 bool nnc_verify_file(nnc_rstream *rs, nnc_exefs_file_header *headers,
 	nnc_sha256_hash *hashes, nnc_u8 i)
 {
 	nnc_sha256_hash hash;
-	NNC_RS_PCALL(rs, seek_abs, 0x200 + headers[i].offset);
+	NNC_RS_PCALL(rs, seek_abs, NNC_EXEFS_HEADER_SIZE + headers[i].offset);
 	TRYB(nnc_crypto_sha256_part(rs, hash, headers[i].size));
 	return memcmp(hash, hashes[i], sizeof(hash)) == 0;
 }

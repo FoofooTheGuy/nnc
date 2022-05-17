@@ -21,7 +21,7 @@ typedef nnc_u8 nnc_sha256_hash[0x20];
 
 /** Container struct to hold keys which you should initialize with \ref NNC_KEYSET_INIT. */
 typedef struct nnc_keyset {
-	nnc_u8 flags;      ///< bit0 = bootrom keys available, bit1 = default keys available, bit2 = developer keys, bit3 = retail keys.
+	nnc_u8 flags;      ///< bit1 = default keys available, bit2 = developer keys, bit3 = retail keys.
 	nnc_u128 kx_ncch0; ///< Keyslot 0x2C.
 	nnc_u128 kx_ncch1; ///< Keyslot 0x25.
 	nnc_u128 kx_ncchA; ///< Keyslot 0x18.
@@ -48,9 +48,13 @@ typedef struct nnc_aes_ctr {
 	void *crypto_ctx; ///< Context for the cryptographic library used.
 	nnc_rstream *child;
 	nnc_u8 ctr[0x10];
-	nnc_u128 key;
 	nnc_u128 iv;
 } nnc_aes_ctr;
+
+typedef struct nnc_keypair {
+	nnc_u128 primary;   ///< Also known as the "info menu" key.
+	nnc_u128 secondary; ///< Also known as the "content" key.
+} nnc_keypair;
 
 
 /** \brief          Hash a \ref nnc_rstream partly.
@@ -70,31 +74,6 @@ nnc_result nnc_crypto_sha256_part(nnc_rstream *rs, nnc_sha256_hash digest, nnc_u
  *  Always succeeds currently.
  */
 nnc_result nnc_crypto_sha256(const nnc_u8 *buf, nnc_sha256_hash digest, nnc_u32 size);
-
-/** \brief      Sets keys in a keyset from bootrom9.
- *              Keys set: kx_ncch0.
- *  \param rs   Stream to read bootrom9 from.
- *  \param ks   Output keyset.
- *  \param dev  Whether or not to use a developer set (untested for true).
- *  \returns
- *  Anything that \p rs->read() can return.\n
- *  \p NNC_R_MISMATCH => Developer bit in \p ks doesn't match with \p dev.
- */
-nnc_result nnc_keyset_boot9(nnc_rstream *rs, nnc_keyset *ks, bool dev);
-
-/** \brief     Search in OS-specific directories for boot9.bin and set keys from bootrom9.
- *             Same keys as \ref nnc_keyset_boot9 are set. Paths checked are:
- *             Linux/MacOS: $HOME/.config/3ds, $HOME/3ds, $HOME/.3ds, /usr/share/3ds.
- *             Windows: %USERPROFILE%/3ds, %USERPROFILE%/.3ds, %APPDATA/3ds
- *  \param ks  Output keyset.
- *  \note      All files found are considered retail, if you know you have
- *             a developer bootrom9 use \ref nnc_keyset_boot9 with dev=true.
- *  \returns
- *  Anything \ref nnc_keyset_boot9 can return.\n
- *  Anything \ref nnc_file_open can return.\n
- *  \p NNC_R_NOT_FOUND => boot9.bin not found in checked paths.
- */
-nnc_result nnc_scan_boot9(nnc_keyset *ks);
 
 /** \brief      Sets default keys in a keyset.
  *              Keys set: kx_ncch1, kx_ncchA, kx_ncchB.
@@ -118,7 +97,9 @@ nnc_result nnc_keyset_default(nnc_keyset *ks, bool dev);
 nnc_result nnc_seeds_seeddb(nnc_rstream *rs, nnc_seeddb *seeddb);
 
 /** \brief         Search in OS-specific directories for seeddb.bin and extract keys from a SeedDB.
- *                 This function searches the same directories as \ref nnc_scan_boot9.
+ *                 This function scans:\n
+ *                 - Linux/MacOS: $HOME/.config/3ds, $HOME/3ds, $HOME/.3ds, /usr/share/3ds.\n
+ *                 - Windows: %USERPROFILE%/3ds, %USERPROFILE%/.3ds, %APPDATA/3ds
  *  \param seeddb  Output SeedDB.
  *  \note          This function allocates dynamic memory so be sure to free
  *                 it with \ref nnc_free_seeddb.
@@ -157,24 +138,17 @@ nnc_result nnc_keyy_seed(struct nnc_ncch_header *ncch, nnc_u128 *keyy,
 
 /** \brief         Gets the normal key of a region in the menu info group.
  *  \param output  Output key
- *  \param ks      Keyset that requires \ref nnc_keyset_boot9.
+ *  \param ks      Keyset.
  *  \param ncch    NCCH to get key from.
- *  \param seeddb  SeedDB to fetch seeds from if required.
- *                 If \p seeddb is NULL this function will return
- *                 NNC_R_SEED_NOT_FOUND for any NCCH that requires a seed.
  *  \returns
- *  Anything \ref nnc_get_seed can return.\n
  *  \p NNC_R_KEY_NOT_FOUND => KeyX not found.\n
- *  \p NNC_R_CORRUPT => Seed is invalid.\n
  *  \p NNC_R_INVAL => NCCH is not encrypted.
  */
-nnc_result nnc_key_menu_info(nnc_u128 *output, nnc_keyset *ks, struct nnc_ncch_header *ncch,
-	nnc_seeddb *seeddb);
+nnc_result nnc_key_menu_info(nnc_u128 *output, nnc_keyset *ks, struct nnc_ncch_header *ncch);
 
 /** \brief         Gets the normal key of region in the content group.
  *  \param output  Output key.
- *  \param ks      Keyset that may require either \ref nnc_keyset_boot9
- *                 or \ref nnc_keyset_default.
+ *  \param ks      Keyset.
  *  \param ncch    NCCH to get key from.
  *  \param seeddb  SeedDB to fetch seeds from if required.
  *                 If \p seeddb is NULL this function will return
@@ -185,8 +159,7 @@ nnc_result nnc_key_menu_info(nnc_u128 *output, nnc_keyset *ks, struct nnc_ncch_h
  *  \p NNC_R_CORRUPT => Seed is invalid.\n
  *  \p NNC_R_INVAL => NCCH is not encrypted.
  */
-nnc_result nnc_key_content(nnc_u128 *output, nnc_keyset *ks, struct nnc_ncch_header *ncch,
-	nnc_seeddb *seeddb);
+nnc_result nnc_key_content(nnc_u128 *output, nnc_keyset *ks, nnc_seeddb *seeddb, struct nnc_ncch_header *ncch);
 
 /** \brief              Gets the initial counter.
  *  \param ncch         NCCH to get counter for.
@@ -212,6 +185,22 @@ nnc_result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, nnc_u8 for_section,
  */
 nnc_result nnc_aes_ctr_open(nnc_aes_ctr *self, nnc_rstream *child, nnc_u128 *key,
 	nnc_u8 iv[0x10]);
+
+/** \brief         Get a key pair for an NCCH.
+ *  \param output  Output keypair.
+ *  \param ks      Keyset from \ref nnc_keyset_default.
+ *  \param seeddb  SeedDB. See comments in \ref nnc_key_content.
+ *  \param ncch    NCCH to get keypair for.
+ *  \note          If the NCCH is decrypted, this function will do nothing.
+ *                 So if you know for a fact the NCCH is decrypted passing NULL
+ *                 as keypair for any function that takes it will have the same
+ *                 effect as passing the return of this function.
+ *  \returns
+ *  Anything \ref nnc_key_menu_info can return.\n
+ *  Anything \ref nnc_key_content can return.
+ */
+nnc_result nnc_fill_keypair(nnc_keypair *output, nnc_keyset *ks, nnc_seeddb *seeddb,
+	struct nnc_ncch_header *ncch);
 
 NNC_END
 #endif

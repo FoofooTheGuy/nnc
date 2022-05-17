@@ -149,7 +149,9 @@ static result subview_read(nnc_subview *self, u8 *buf, u32 max, u32 *totalRead)
 	result ret;
 	/* seek to correct offset in child */
 	TRY(NNC_RS_PCALL(self->child, seek_abs, self->off + self->pos));
-	return NNC_RS_PCALL(self->child, read, buf, max, totalRead);
+	ret = NNC_RS_PCALL(self->child, read, buf, max, totalRead);
+	self->pos += *totalRead;
+	return ret;
 }
 
 static result subview_seek_abs(nnc_subview *self, u32 pos)

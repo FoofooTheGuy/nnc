@@ -13,6 +13,9 @@ NNC_BEGIN
 /** Maximum files an exefs has. */
 #define NNC_EXEFS_MAX_FILES 10
 
+/** Size of raw ExeFS header. You don't need this. */
+#define NNC_EXEFS_HEADER_SIZE 0x200
+
 /** Exefs file header. */
 typedef struct nnc_exefs_file_header {
 	char name[9];    /** Filename, NULL-terminated. */
@@ -42,6 +45,7 @@ nnc_i8 nnc_find_exefs_file_index(const char *name, nnc_exefs_file_header *header
 /** \brief         Open a subview for a file.
  *  \param rs      Stream to open in.
  *  \param header  File to open.
+ *  \note          If the ExeFS comes from an NCCH use \ref nnc_ncch_exefs_subview.
  */
 void nnc_exefs_subview(nnc_rstream *rs, nnc_subview *sv, nnc_exefs_file_header *header);
 

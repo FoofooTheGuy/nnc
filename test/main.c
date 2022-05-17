@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define DIE_USAGE() die("usage: [ dump-bootrom-keys | extract-exefs | extract-romfs | romfs-info | ncch-info | tmd-info | smdh-info | test-u128 ]")
+#define DIE_USAGE() die("usage: [ extract-exefs | extract-romfs | romfs-info | ncch-info | tmd-info | smdh-info | test-u128 ]")
 
 static const char *opt = "nnc-test";
 void die(const char *fmt, ...)
@@ -30,7 +30,6 @@ int ncch_info_main(int argc, char *argv[]); /* ncch.c */
 int tmd_info_main(int argc, char *argv[]); /* tmd-info.c */
 int xromfs_main(int argc, char *argv[]); /* romfs.c */
 int romfs_main(int argc, char *argv[]); /* romfs.c */
-int boot9_main(int argc, char *argv[]); /* boot9.c */
 int smdh_main(int argc, char *argv[]); /* smdh.c */
 int u128_main(int argc, char *argv[]); /* u128.c */
 
@@ -41,7 +40,6 @@ int main(int argc, char *argv[])
 	argv[1] = argv[0];
 	--argc;
 #define CASE(cmdn, func) if(strcmp(cmd, cmdn) == 0) do { opt = "nnc-test: " cmdn; return func(argc, &argv[1]); } while(0)
-	CASE("dump-bootrom-keys", boot9_main);
 	CASE("extract-exefs", extract_exefs_main);
 	CASE("extract-romfs", xromfs_main);
 	CASE("ncch-info", ncch_info_main);

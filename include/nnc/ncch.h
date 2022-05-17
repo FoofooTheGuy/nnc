@@ -7,6 +7,7 @@
 #define inc_ncch_h
 
 #include <nnc/crypto.h>
+#include <nnc/exefs.h>
 #include <nnc/u128.h>
 #include <nnc/base.h>
 NNC_BEGIN
@@ -96,20 +97,46 @@ typedef struct nnc_ncch_section_stream {
  */
 nnc_result nnc_read_ncch_header(nnc_rstream *rs, nnc_ncch_header *ncch);
 
-/** \brief Open a stream for the RomFS.
- *  \param ncch           NCCH to open from.
- *  \param rs             Stream associated with NCCH.
- *  \param seeddb         (optional) SeedDB to fetch seeds from.
- *  \param ks             Keyset, see \ref nnc_key_content.
- *  \param romfs_section  Output stream.
+/** \brief          Open a stream for the RomFS.
+ *  \param ncch     NCCH to open from.
+ *  \param rs       Stream associated with NCCH.
+ *  \param kp       Keypair from \ref nnc_fill_keypair.
+ *  \param section  Output stream.
  *  \returns
  *  Anything \ref nnc_aes_ctr_open can return.\n
  *  Anything \ref nnc_get_ncch_iv can return.\n
- *  Anything \ref nnc_key_content can return.\n
- *  \ref NNC_R_NOT_FOUND => No RomFS is present in this NCCH.
+ *  \p NNC_R_NOT_FOUND => No RomFS is present in this NCCH.
  */
 nnc_result nnc_ncch_section_romfs(nnc_ncch_header *ncch, nnc_rstream *rs,
-	nnc_seeddb *seeddb, nnc_keyset *ks, nnc_ncch_section_stream *romfs_section);
+	nnc_keypair *kp, nnc_ncch_section_stream *section);
+
+/** \brief          Open a stream for the ExeFS header
+ *  \param ncch     NCCH to open from.
+ *  \param rs       Stream associated with NCCH.
+ *  \param kp       Keypair from \ref nnc_fill_keypair.
+ *  \param section  Output stream.
+ *  \note           You have to open files with \ref nnc_ncch_exefs_subview instead
+ *                  of \ref nnc_exefs_subview.
+ *  \returns
+ *  Anything \ref nnc_aes_ctr_open can return.\n
+ *  Anything \ref nnc_get_ncch_iv can return.\n
+ *  \p NNC_R_NOT_FOUND => No ExeFS is present in this NCCH.
+ */
+nnc_result nnc_ncch_section_exefs_header(nnc_ncch_header *ncch, nnc_rstream *rs,
+	nnc_keypair *kp, nnc_ncch_section_stream *section);
+
+/** \brief Opens an ExeFS file for an ExeFS that belongs to an NCCH.
+ *  \param ncch    NCCH to open ExeFS file of.
+ *  \param rs      Stream associated with NCCH.
+ *  \param kp      Keypair from \ref nnc_fill_keypair.
+ *  \param file    Output file stream.
+ *  \param header  File header from \ref nnc_read_exefs_header.
+ *  \returns
+ *  Anything \ref nnc_aes_ctr_open can return.\n
+ *  Anything \ref nnc_get_ncch_iv can return.
+ */
+nnc_result nnc_ncch_exefs_subview(nnc_ncch_header *ncch, nnc_rstream *rs,
+	nnc_keypair *kp, nnc_ncch_section_stream *file, nnc_exefs_file_header *header);
 
 NNC_END
 #endif

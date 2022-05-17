@@ -66,45 +66,68 @@ result nnc_read_ncch_header(rstream *rs, nnc_ncch_header *ncch)
 	return NNC_R_OK;
 }
 
-static result open_sv(nnc_subview *section, rstream *rs, nnc_ncch_header *ncch,
-	u8 which)
-{
-	switch(which)
-	{
-	case NNC_SECTION_ROMFS:
-		nnc_subview_open(section, rs, NNC_MU_TO_BYTE(ncch->romfs_offset),
-			NNC_MU_TO_BYTE(ncch->romfs_size));
-		break;
-	case NNC_SECTION_EXEFS:
-		// TODO...
-	case NNC_SECTION_EXTHEADER:
-		break;
-	default:
-		fprintf(stderr, "Invalid section given in open_sv()\n");
-		abort();
-	}
-	return NNC_R_OK;
-}
-
-static result open_content_section(nnc_ncch_header *ncch, nnc_rstream *rs,
-	nnc_seeddb *seeddb, nnc_keyset *ks, nnc_ncch_section_stream *section, u8 which)
-{
-	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
-		return open_sv(&section->u.dec.sv, rs, ncch, which);
-
-	result ret; u8 iv[0x10]; u128 key;
-	TRY(nnc_get_ncch_iv(ncch, which, iv));
-	TRY(nnc_key_content(&key, ks, ncch, seeddb));
-
-	TRY(open_sv(&section->u.enc.sv, rs, ncch, which));
-	TRY(nnc_aes_ctr_open(&section->u.enc.crypt, NNC_RSP(&section->u.enc.sv), &key, iv));
-	return NNC_R_OK;
-}
+#define SUBVIEW_R(mode, offset, size) \
+	nnc_subview_open(&section->u. mode .sv, rs, offset, size)
+#define SUBVIEW(mode, offset, size) \
+	SUBVIEW_R(mode, NNC_MU_TO_BYTE(offset), NNC_MU_TO_BYTE(size))
 
 result nnc_ncch_section_romfs(nnc_ncch_header *ncch, nnc_rstream *rs,
-	nnc_seeddb *seeddb, nnc_keyset *ks, nnc_ncch_section_stream *romfs_section)
+	nnc_keypair *kp, nnc_ncch_section_stream *section)
 {
-	if(ncch->flags & NNC_NCCH_NO_ROMFS) return NNC_R_NOT_FOUND;
-	return open_content_section(ncch, rs, seeddb, ks, romfs_section, NNC_SECTION_ROMFS);
+	if(ncch->flags & NNC_NCCH_NO_ROMFS || ncch->romfs_size == 0)
+		return NNC_R_NOT_FOUND;
+	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
+		return SUBVIEW(dec, ncch->romfs_offset, ncch->romfs_size), NNC_R_OK;
+
+	u8 iv[0x10]; result ret;
+	TRY(nnc_get_ncch_iv(ncch, NNC_SECTION_ROMFS, iv));
+	SUBVIEW(enc, ncch->romfs_offset, ncch->romfs_size);
+	return nnc_aes_ctr_open(&section->u.enc.crypt, NNC_RSP(&section->u.enc.sv),
+		&kp->secondary, iv);
+}
+
+result nnc_ncch_section_exefs_header(nnc_ncch_header *ncch, nnc_rstream *rs,
+	nnc_keypair *kp, nnc_ncch_section_stream *section)
+{
+	if(ncch->exefs_size == 0) return NNC_R_NOT_FOUND;
+	/* ExeFS header is only 1 NNC_MEDIA_UNIT large */
+	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
+		return SUBVIEW(dec, ncch->exefs_offset, 1), NNC_R_OK;
+
+	u8 iv[0x10]; result ret;
+	TRY(nnc_get_ncch_iv(ncch, NNC_SECTION_EXEFS, iv));
+	SUBVIEW(enc, ncch->exefs_offset, 1);
+	return nnc_aes_ctr_open(&section->u.enc.crypt, NNC_RSP(&section->u.enc.sv),
+		&kp->primary, iv);
+}
+
+nnc_result nnc_ncch_exefs_subview(nnc_ncch_header *ncch, nnc_rstream *rs,
+	nnc_keypair *kp, nnc_ncch_section_stream *section, nnc_exefs_file_header *header)
+{
+	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
+		return SUBVIEW_R(dec,
+			NNC_MU_TO_BYTE(ncch->exefs_offset) + NNC_EXEFS_HEADER_SIZE + header->offset,
+			header->size), NNC_R_OK;
+
+	nnc_u128 *key; u8 iv[0x10]; result ret;
+	TRY(nnc_get_ncch_iv(ncch, NNC_SECTION_EXEFS, iv));
+	nnc_u128 ctr = nnc_u128_import_be(iv);
+	/* we need to advance the IV to the correct section, split the header so the
+	 * compiler hopefully has an easier job optimizing that */
+	nnc_u128 addition = NNC_PROMOTE128((header->offset / 0x10) + (NNC_EXEFS_HEADER_SIZE / 0x10));
+	nnc_u128_add(&ctr, &addition);
+	nnc_u128_bytes_be(&ctr, iv);
+
+	/* these belong to the "info menu" group */
+	if(strcmp(header->name, "icon") == 0 || strcmp(header->name, "banner") == 0)
+		key = &kp->primary;
+	/* the rest belongs to the "content" group */
+	else
+		key = &kp->secondary;
+
+	SUBVIEW_R(enc,
+		NNC_MU_TO_BYTE(ncch->exefs_offset) + NNC_EXEFS_HEADER_SIZE + header->offset,
+		header->size);
+	return nnc_aes_ctr_open(&section->u.enc.crypt, NNC_RSP(&section->u.enc.sv), key, iv);
 }
 

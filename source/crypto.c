@@ -127,19 +127,6 @@ nnc_result nnc_seeds_seeddb(nnc_rstream *rs, nnc_seeddb *seeddb)
 	return NNC_R_OK;
 }
 
-result nnc_scan_boot9(nnc_keyset *ks)
-{
-	char path[1024 + 1];
-	if(!find_support_file("boot9.bin", path))
-		return NNC_R_NOT_FOUND;
-	nnc_file f;
-	result ret;
-	TRY(nnc_file_open(&f, path));
-	ret = nnc_keyset_boot9(NNC_RSP(&f), ks, 0);
-	NNC_RS_CALL0(f, close);
-	return ret;
-}
-
 result nnc_scan_seeddb(nnc_seeddb *seeddb)
 {
 	char path[1024 + 1];
@@ -169,7 +156,6 @@ void nnc_free_seeddb(nnc_seeddb *seeddb)
 }
 
 enum keyfield {
-	BOOTROM = 0x01,
 	DEFAULT = 0x02,
 	DEV     = 0x04,
 	RETAIL  = 0x08,
@@ -179,33 +165,21 @@ enum keyfield {
 
 #define TYPE_FLAG(is_dev) (is_dev ? DEV : RETAIL)
 
-result nnc_keyset_boot9(nnc_rstream *rs, nnc_keyset *ks, bool dev)
-{
-	u8 type = ks->flags & TYPE_FIELD, mtype = TYPE_FLAG(dev);
-	if(type && type != TYPE_FLAG(dev))
-		return NNC_R_MISMATCH;
-	result ret;
-	u8 blob[0x10];
-	TRY(read_at_exact(rs, dev ? 0x5DD0 : 0x59D0, blob, sizeof(blob)));
-	/* there are more keys in the bootrom but for now they're
-	 * not needed in nnc */
-	ks->kx_ncch0 = nnc_u128_import_be(&blob[0x00]);
-	ks->flags |= BOOTROM | mtype;
-	return NNC_R_OK;
-}
-
 static const struct _kstore {
+	const u128 kx_ncch0;
 	const u128 kx_ncch1;
 	const u128 kx_ncchA;
 	const u128 kx_ncchB;
 } default_keys[2] =
 {
 	{	/* retail */
+		.kx_ncch0 = NNC_HEX128(0xB98E95CECA3E4D17,1F76A94DE934C053),
 		.kx_ncch1 = NNC_HEX128(0xCEE7D8AB30C00DAE,850EF5E382AC5AF3),
 		.kx_ncchA = NNC_HEX128(0x82E9C9BEBFB8BDB8,75ECC0A07D474374),
 		.kx_ncchB = NNC_HEX128(0x45AD04953992C7C8,93724A9A7BCE6182),
 	},
 	{	/* dev */
+		.kx_ncch0 = NNC_HEX128(0x510207515507CBB1,8E243DCB85E23A1D),
 		.kx_ncch1 = NNC_HEX128(0x81907A4B6F1B4732,3A677974CE4AD71B),
 		.kx_ncchA = NNC_HEX128(0x304BF1468372EE64,115EBD4093D84276),
 		.kx_ncchB = NNC_HEX128(0x6C8B2944A0726035,F941DFC018524FB6),
@@ -218,6 +192,7 @@ nnc_result nnc_keyset_default(nnc_keyset *ks, bool dev)
 	u8 type = ks->flags & TYPE_FIELD, mtype = TYPE_FLAG(dev);
 	if(type && type != mtype)
 		return NNC_R_MISMATCH;
+	ks->kx_ncch0 = s->kx_ncch0;
 	ks->kx_ncch1 = s->kx_ncch1;
 	ks->kx_ncchA = s->kx_ncchA;
 	ks->kx_ncchB = s->kx_ncchB;
@@ -273,36 +248,40 @@ static result ky_from_ncch(u128 *ky, nnc_ncch_header *ncch, nnc_seeddb *seeddb)
 	return NNC_R_OK;
 }
 
-result nnc_key_menu_info(u128 *output, nnc_keyset *ks, nnc_ncch_header *ncch,
-	nnc_seeddb *seeddb)
+static void key_fixed(nnc_ncch_header *ncch, u128 *output)
 {
-	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
-		return NNC_R_INVAL;
-	if(!(ks->flags & BOOTROM)) return NNC_R_KEY_NOT_FOUND;
-	result ret; u128 ky; TRY(ky_from_ncch(&ky, ncch, seeddb));
-	/* "menu info" always uses keyslot 0x2C */
-	hwkgen_3ds(output, &ks->kx_ncch0, &ky);
-	return NNC_R_OK;
+	*output = nnc_tid_category(ncch->title_id) & NNC_TID_CAT_SYSTEM
+		? system_fixed_key : fixed_key;
 }
 
-result nnc_key_content(u128 *output, nnc_keyset *ks, nnc_ncch_header *ncch,
-	nnc_seeddb *seeddb)
+result nnc_key_menu_info(u128 *output, nnc_keyset *ks, nnc_ncch_header *ncch)
 {
 	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
 		return NNC_R_INVAL;
 	if(ncch->flags & NNC_NCCH_FIXED_KEY)
-	{
-		*output = nnc_tid_category(ncch->title_id) & NNC_TID_CAT_SYSTEM
-			? system_fixed_key : fixed_key;
-		return NNC_R_OK;
-	}
+		return key_fixed(ncch, output), NNC_R_OK;
+
+	if(!(ks->flags & DEFAULT)) return NNC_R_KEY_NOT_FOUND;
+	/* "menu info" always uses keyslot 0x2C and the unencrypted
+	 * keyy even if NNC_NCCH_USES_SEED is set (!!!) */
+	hwkgen_3ds(output, &ks->kx_ncch0, &ncch->keyy);
+	return NNC_R_OK;
+}
+
+result nnc_key_content(u128 *output, nnc_keyset *ks, nnc_seeddb *seeddb,
+	nnc_ncch_header *ncch)
+{
+	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
+		return NNC_R_INVAL;
+	if(ncch->flags & NNC_NCCH_FIXED_KEY)
+		return key_fixed(ncch, output), NNC_R_OK;
 
 	result ret; u128 ky; TRY(ky_from_ncch(&ky, ncch, seeddb));
 
 	switch(ncch->crypt_method)
 	{
 #define CASE(val, key, dep) case val: if(!(ks->flags & (dep))) return NNC_R_KEY_NOT_FOUND; hwkgen_3ds(output, &ks->kx_ncch##key, &ky); break;
-	CASE(0x00, 0, BOOTROM)
+	CASE(0x00, 0, DEFAULT)
 	CASE(0x01, 1, DEFAULT)
 	CASE(0x0A, A, DEFAULT)
 	CASE(0x0B, B, DEFAULT)
@@ -311,6 +290,16 @@ result nnc_key_content(u128 *output, nnc_keyset *ks, nnc_ncch_header *ncch,
 	}
 
 	return NNC_R_OK;
+}
+
+nnc_result nnc_fill_keypair(nnc_keypair *output, nnc_keyset *ks, nnc_seeddb *seeddb,
+	struct nnc_ncch_header *ncch)
+{
+	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
+		return NNC_R_OK; // no need to do any key generating
+	result ret;
+	TRY(nnc_key_content(&output->secondary, ks, seeddb, ncch));
+	return nnc_key_menu_info(&output->primary, ks, ncch);
 }
 
 result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, u8 for_section,
@@ -354,16 +343,9 @@ result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, u8 for_section,
 
 /* nnc_aes_ctr */
 
-static void new_aes_ctr_ctx(nnc_aes_ctr *ac, u32 offset)
+static void redo_ctr(nnc_aes_ctr *ac, u32 offset)
 {
-	mbedtls_aes_context *ctx = ac->crypto_ctx;
-	mbedtls_aes_init(ctx);
-
-	u8 buf[0x10];
-	nnc_u128_bytes_be(&ac->key, buf);
-	mbedtls_aes_setkey_enc(ctx, buf, 128);
-
-	u128 ctr = { .hi = 0, .lo = offset / 0x10 };
+	u128 ctr = NNC_PROMOTE128(offset / 0x10);
 	nnc_u128_add(&ctr, &ac->iv);
 	nnc_u128_bytes_be(&ctr, ac->ctr);
 }
@@ -371,14 +353,18 @@ static void new_aes_ctr_ctx(nnc_aes_ctr *ac, u32 offset)
 static result aes_ctr_read(nnc_aes_ctr *self, u8 *buf, u32 max, u32 *totalRead)
 {
 	if(max % 0x10 != 0) return NNC_R_BAD_ALIGN;
+
 	result ret;
 	TRY(NNC_RS_PCALL(self->child, read, buf, max, totalRead));
+
 	/* if we read unaligned we need to align it down */
 	if(*totalRead % 0x10 != 0) *totalRead = ALIGN(*totalRead, 0x10) - 0x10;
+
 	/* now we gotta decrypt *totalRead bytes in buf */
 	u8 block[0x10];
 	size_t of = 0;
 	mbedtls_aes_crypt_ctr(self->crypto_ctx, *totalRead, &of, self->ctr, block, buf, buf);
+
 	return NNC_R_OK;
 }
 
@@ -390,8 +376,7 @@ static result aes_ctr_seek_abs(nnc_aes_ctr *self, u32 pos)
 	 * to save a bit of time. */
 	if(cpos == pos) return NNC_R_OK;
 	NNC_RS_PCALL(self->child, seek_abs, pos);
-	mbedtls_aes_free(self->crypto_ctx);
-	new_aes_ctr_ctx(self, pos);
+	redo_ctr(self, pos);
 	return NNC_R_OK;
 }
 
@@ -403,8 +388,7 @@ static result aes_ctr_seek_rel(nnc_aes_ctr *self, u32 pos)
 	if(pos == 0) return NNC_R_OK;
 	pos = NNC_RS_PCALL0(self->child, tell) + pos;
 	NNC_RS_PCALL(self->child, seek_abs, pos);
-	mbedtls_aes_free(self->crypto_ctx);
-	new_aes_ctr_ctx(self, pos);
+	redo_ctr(self, pos);
 	return NNC_R_OK;
 }
 
@@ -420,11 +404,8 @@ static u32 aes_ctr_tell(nnc_aes_ctr *self)
 
 static void aes_ctr_close(nnc_aes_ctr *self)
 {
-	if(self->crypto_ctx)
-	{
-		mbedtls_aes_free(self->crypto_ctx);
-		free(self->crypto_ctx);
-	}
+	mbedtls_aes_free(self->crypto_ctx);
+	free(self->crypto_ctx);
 }
 
 static const nnc_rstream_funcs aes_ctr_funcs = {
@@ -441,11 +422,15 @@ nnc_result nnc_aes_ctr_open(nnc_aes_ctr *self, nnc_rstream *child, u128 *key, u8
 	self->funcs = &aes_ctr_funcs;
 	if(!(self->crypto_ctx = malloc(sizeof(mbedtls_aes_context))))
 		return NNC_R_NOMEM;
-	memcpy(self->ctr, iv, 0x10);
 	self->iv = nnc_u128_import_be(iv);
+	memcpy(self->ctr, iv, 0x10);
 	self->child = child;
-	self->key = *key;
-	new_aes_ctr_ctx(self, 0);
+
+	u8 buf[0x10];
+	nnc_u128_bytes_be(key, buf);
+	mbedtls_aes_setkey_enc(self->crypto_ctx, buf, 128);
+
+	redo_ctr(self, 0);
 	return NNC_R_OK;
 }
 

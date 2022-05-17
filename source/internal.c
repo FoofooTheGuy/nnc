@@ -77,8 +77,9 @@ void nnc_tid_set_variation(u64 *tid, u8 variation)
 	*tid = (*tid & 0xFFFFFFFFFFFFFF00) | ((u64) (variation & 0xFF));
 }
 
-void nnc_dumpmem(u8 *mem, u32 len)
+void nnc_dumpmem(void *mem_, u32 len)
 {
+	u8 *mem = mem_;
 	for(u32 i = 0; i < len; i += 0x10)
 	{
 		int row = MIN(0x10, len - i);

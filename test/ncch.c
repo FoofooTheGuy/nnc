@@ -1,10 +1,13 @@
 
 #include <nnc/read-stream.h>
+#include <nnc/exefs.h>
 #include <nnc/ncch.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+#define NO_CRYPT "(unable to find support files for encrypted NCCHs)"
 
 void nnc_dumpmem(const nnc_u8 *b, nnc_u32 size);
 void die(const char *fmt, ...);
@@ -87,9 +90,10 @@ int ncch_info_main(int argc, char *argv[])
 	nnc_keyset ks = NNC_KEYSET_INIT;
 	if(nnc_scan_seeddb(&seeddb) != NNC_R_OK)
 		fprintf(stderr, "Failed to find a seeddb. Titles with seeds will not work.\n");
-	if(nnc_scan_boot9(&ks) != NNC_R_OK)
-		fprintf(stderr, "Failed to find a boot9. Titles with encryption might not work.\n");
 	nnc_keyset_default(&ks, false);
+	nnc_keypair kpair; int crypt = 1;
+	if(nnc_fill_keypair(&kpair, &ks, &seeddb, &header) != NNC_R_OK)
+		fprintf(stderr, "failed to fill keypair, crypto will not work.\n"), crypt = 0;
 
 	printf(
 		"== %s ==\n"
@@ -118,7 +122,7 @@ int ncch_info_main(int argc, char *argv[])
 	printf(
 		" Content Size                 : " MU_PAIRB "\n"
 		" Partition ID                 : %016" PRIX64 "\n"
-		" Maker Code                   : %s\n"
+		" Maker Code                   : %s (0x%04X)\n"
 		" NCCH Version                 : %02X\n"
 		" Seed Check Hash              : %08X\n"
 		" Title ID                     : %016" PRIX64 "\n"
@@ -138,7 +142,7 @@ int ncch_info_main(int argc, char *argv[])
 		" RomFS Region Offset          : " MU_PAIR "\n"
 		"                Size          : " MU_PAIRB "\n"
 	, MU_ARG(header.content_size)
-	, header.partition_id, header.maker_code, header.version
+	, header.partition_id, header.maker_code, * (nnc_u32 *) header.maker_code, header.version
 	, header.seed_hash, header.title_id, header.product_code
 	, header.extheader_size , get_crypt_support(header.crypt_method)
 	/* i don't think this could ever be true, but it's here just in case */
@@ -154,8 +158,10 @@ int ncch_info_main(int argc, char *argv[])
 	printf(" RomFS Region Hash            : "); print_hash(header.romfs_hash); puts("");
 
 	nnc_ncch_section_stream romfs;
-	printf(" RomFS (Decrypted) Block0     : ");
-	if(nnc_ncch_section_romfs(&header, NNC_RSP(&f), &seeddb, &ks, &romfs) == NNC_R_OK)
+	printf(" RomFS Block0                 : ");
+	if(!(header.flags & NNC_NCCH_NO_CRYPTO) && !crypt)
+		puts(NO_CRYPT);
+	else if(nnc_ncch_section_romfs(&header, NNC_RSP(&f), &kpair, &romfs) == NNC_R_OK)
 	{
 		nnc_u8 block0[0x10];
 		nnc_u32 total;
@@ -164,6 +170,44 @@ int ncch_info_main(int argc, char *argv[])
 		else
 			puts("(failed to read)");
 		NNC_RS_CALL0(romfs, close);
+	}
+	else
+		puts("(failed to read)");
+	nnc_ncch_section_stream exefs;
+	printf(" ExeFS Header Block0          : ");
+	if(!(header.flags & NNC_NCCH_NO_CRYPTO) && !crypt)
+		puts(NO_CRYPT "\n   /icon (SMDH) Block0        : " NO_CRYPT);
+	else if(nnc_ncch_section_exefs_header(&header, NNC_RSP(&f), &kpair, &exefs) == NNC_R_OK)
+	{
+		nnc_u8 block0[0x10];
+		nnc_u32 total;
+		if(NNC_RS_CALL(exefs, read, block0, 0x10, &total) == NNC_R_OK && total == 0x10)
+			nnc_dumpmem(block0, 0x10);
+		else
+			puts("(failed to read)");
+
+
+		NNC_RS_CALL(exefs, seek_abs, 0);
+		nnc_exefs_file_header headers[NNC_EXEFS_MAX_FILES];
+		nnc_read_exefs_header(NNC_RSP(&exefs), headers, NULL, NULL);
+		nnc_i8 index = nnc_find_exefs_file_index("icon", headers);
+		printf("   /icon (SMDH) Block0        : ");
+		if(index != -1)
+		{
+			nnc_ncch_section_stream icon;
+			nnc_ncch_exefs_subview(&header, NNC_RSP(&f), &kpair, &icon, &headers[index]);
+
+			if(NNC_RS_CALL(icon, read, block0, 0x10, &total) == NNC_R_OK && total == 0x10)
+				nnc_dumpmem(block0, 0x10);
+			else
+				puts("(failed to read)");
+
+			NNC_RS_CALL0(icon, close);
+		}
+		else
+			puts("(not present)");
+
+		NNC_RS_CALL0(exefs, close);
 	}
 	else
 		puts("(failed to read)");

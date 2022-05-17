@@ -5,7 +5,7 @@ TARGET   := libnnc.a
 BUILD    := build
 LIBS     := -lmbedcrypto
 
-TEST_SOURCES  := test/main.c test/extract-exefs.c test/tmd-info.c test/u128.c test/smdh.c test/romfs.c test/boot9.c test/ncch.c
+TEST_SOURCES  := test/main.c test/extract-exefs.c test/tmd-info.c test/u128.c test/smdh.c test/romfs.c test/ncch.c
 TEST_TARGET   := nnc-test
 LDFLAGS       ?=
 

@@ -73,7 +73,7 @@ result nnc_read_at_exact(struct nnc_rstream *rs, u32 offset, u8 *data, u32 dsize
 result nnc_read_exact(struct nnc_rstream *rs, u8 *data, u32 dsize);
 #define dumpmem nnc_dumpmem
 /* for debugging */
-void nnc_dumpmem(u8 *mem, u32 len);
+void nnc_dumpmem(void *mem, u32 len);
 
 #endif
 

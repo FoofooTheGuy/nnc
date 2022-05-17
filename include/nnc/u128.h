@@ -22,6 +22,15 @@ typedef struct nnc_u128 {
 #define NNC_HEX128(hi, lo) \
 	{ hi, 0x##lo }
 
+/** \brief Promote a u8, u16, u32 or u64 to an u128
+ *  \code
+ *  nnc_u64 small = 0x424242;
+ *  nnc_u128 promoted = NNC_PROMOTE128(smalll);
+ *  \endcode
+ */
+#define NNC_PROMOTE128(lo) \
+	{ 0, lo }
+
 /** Printf format for lowercase u128 hex. */
 #define NNC_FMT128_LOWER "%016" PRIx64 "%016" PRIx64
 /** Printf format for uppercase u128 hex. */
