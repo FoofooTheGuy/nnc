@@ -1,4 +1,3 @@
-// vim: ft=c.doxygen
 /** \file   u128.h
  *  \brief  An simple 128-bit unsigned integer implementation.
  */

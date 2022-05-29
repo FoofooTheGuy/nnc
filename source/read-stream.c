@@ -145,7 +145,8 @@ void nnc_mem_own_open(nnc_memory *self, void *ptr, u32 size)
 
 static result subview_read(nnc_subview *self, u8 *buf, u32 max, u32 *totalRead)
 {
-	max = MIN(max, self->size);
+	u32 sizeleft = self->size - self->pos;
+	max = MIN(max, sizeleft);
 	result ret;
 	/* seek to correct offset in child */
 	TRY(NNC_RS_PCALL(self->child, seek_abs, self->off + self->pos));

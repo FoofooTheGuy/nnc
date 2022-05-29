@@ -1,4 +1,3 @@
-// vim: ft=c.doxygen
 /** \file  romfs.h
  *  \brief Functions relating to RomFS.
  *  \see   https://www.3dbrew.org/wiki/RomFS

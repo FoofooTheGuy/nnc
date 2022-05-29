@@ -307,7 +307,7 @@ result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, u8 for_section,
 {
 	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
 		return NNC_R_INVAL;
-	if(for_section < NNC_SECTION_EXTHEADER || for_section > NNC_SECTION_ROMFS)
+	if(for_section < NNC_SECTION_EXHEADER || for_section > NNC_SECTION_ROMFS)
 		return NNC_R_INVAL;
 	u64 *ctr64 = (u64 *) counter;
 	u32 *ctr32 = (u32 *) counter;
@@ -324,7 +324,7 @@ result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, u8 for_section,
 		ctr32[2] = 0;
 		switch(for_section)
 		{
-		case NNC_SECTION_EXTHEADER:
+		case NNC_SECTION_EXHEADER:
 			ctr32[3] = BE32(NNC_MEDIA_UNIT);
 			break;
 		case NNC_SECTION_EXEFS:
@@ -336,7 +336,7 @@ result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, u8 for_section,
 		}
 		break;
 	default:
-		return NNC_R_UNSUPPORTED_VER;
+		return NNC_R_UNSUPPORTED;
 	}
 	return NNC_R_OK;
 }

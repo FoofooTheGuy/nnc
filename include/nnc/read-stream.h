@@ -1,4 +1,3 @@
-// vim: ft=c.doxygen
 /** \file  read-stream.h
  *  \brief Definitions for nnc_rstream.
  */

@@ -1,4 +1,3 @@
-// vim: ft=c.doxygen
 /** \file   crypto.h
  *  \brief  Functions relating to encryption, decryption and hashing.
  */
@@ -38,7 +37,7 @@ typedef struct nnc_seeddb {
 } nnc_seeddb;
 
 enum nnc_section {
-	NNC_SECTION_EXTHEADER = 1, ///< NCCH extended header section.
+	NNC_SECTION_EXHEADER  = 1, ///< NCCH extended header section.
 	NNC_SECTION_EXEFS     = 2, ///< NCCH ExeFS section.
 	NNC_SECTION_ROMFS     = 3, ///< NCCH RomFS section.
 };
@@ -166,6 +165,7 @@ nnc_result nnc_key_content(nnc_u128 *output, nnc_keyset *ks, nnc_seeddb *seeddb,
  *  \param for_section  Section to get counter for, see \ref nnc_section.
  *  \param counter      Output counter.
  *  \returns
+ *  \p NNC_R_UNSUPPORTED => Unsupported NCCH version.
  *  \p NNC_R_INVAL => \p for_section is invalid or NCCH is not encrypted.
  */
 nnc_result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, nnc_u8 for_section,

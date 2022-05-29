@@ -118,7 +118,7 @@ int nnc_utf8_to_utf16(u16 *out, int outlen, const u8 *in, int inlen)
 		if(p1 < 0xE0)
 		{
 			u32 cp = ((p1 & 0x1F) << 6)
-			         | (in[i + 1] & 0x3F);
+			       | (in[i + 1] & 0x3F);
 			write_utf16(out, outlen, &outptr, cp);
 			continue;
 		}

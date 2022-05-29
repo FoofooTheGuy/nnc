@@ -1,4 +1,3 @@
-// vim: ft=c.doxygen
 /** \file  tmd.h
  *  \brief Functions relating to TMD (Title metadata).
  *  \see   https://www.3dbrew.org/wiki/Title_metadata

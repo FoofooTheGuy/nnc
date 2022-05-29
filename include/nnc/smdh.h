@@ -1,4 +1,3 @@
-// vim: ft=c.doxygen
 #ifndef inc_nnc_smdh_h
 #define inc_nnc_smdh_h
 /** \file  smdh.h

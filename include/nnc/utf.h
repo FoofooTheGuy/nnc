@@ -1,4 +1,3 @@
-// vim: ft=c.doxygen
 #ifndef inc_nnc_utf_h
 #define inc_nnc_utf_h
 /** \file  utf.h

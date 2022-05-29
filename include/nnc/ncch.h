@@ -1,4 +1,3 @@
-// vim: ft=c.doxygen
 /** \file   ncch.h
  *  \brief  Functions relating to NCCH.
  *  \see    https://www.3dbrew.org/wiki/NCCH
@@ -53,8 +52,8 @@ typedef struct nnc_ncch_header {
 	nnc_u64 title_id;               ///< Also known as a "program id".
 	nnc_sha256_hash logo_hash;      ///< Hash of the logo region.
 	char product_code[17];          ///< Product code, NULL-terminated but length is always 16.
-	nnc_sha256_hash extheader_hash; ///< Hash of the extended header region.
-	nnc_u32 extheader_size;         ///< Size of the extended header region in bytes (!!).
+	nnc_sha256_hash exheader_hash;  ///< Hash of the extended header region.
+	nnc_u32 exheader_size;          ///< Size of the extended header region in bytes (!!).
 	nnc_u8 crypt_method;            ///< Determines the keys to use, see \ref nnc_ncch_crypt_methods.
 	nnc_u8 platform;                ///< Content platform, see \ref nnc_ncch_platform.
 	nnc_u8 type;                    ///< Content type field, see \ref nnc_ncch_type.
@@ -125,7 +124,21 @@ nnc_result nnc_ncch_section_romfs(nnc_ncch_header *ncch, nnc_rstream *rs,
 nnc_result nnc_ncch_section_exefs_header(nnc_ncch_header *ncch, nnc_rstream *rs,
 	nnc_keypair *kp, nnc_ncch_section_stream *section);
 
-/** \brief Opens an ExeFS file for an ExeFS that belongs to an NCCH.
+/** \brief          Open a stream for the extended header.
+ *  \param ncch     NCCH to open from.
+ *  \param rs       Stream associated with NCCH.
+ *  \param kp       Keypair from \ref nnc_fill_keypair.
+ *  \param section  Output stream.
+ *  \returns
+ *  Anything \ref nnc_aes_ctr_open can return.\n
+ *  Anything \ref nnc_get_ncch_iv can return.\n
+ *  \p NNC_R_NOT_FOUND => No extended header is present in this NCCH.
+ *  \p NNC_R_CORRUPT => Extended header is not the expected size.
+ */
+nnc_result nnc_ncch_section_exheader(nnc_ncch_header *ncch, nnc_rstream *rs,
+	nnc_keypair *kp, nnc_ncch_section_stream *section);
+
+/** \brief         Opens an ExeFS file for an ExeFS that belongs to an NCCH.
  *  \param ncch    NCCH to open ExeFS file of.
  *  \param rs      Stream associated with NCCH.
  *  \param kp      Keypair from \ref nnc_fill_keypair.

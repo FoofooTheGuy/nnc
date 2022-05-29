@@ -80,9 +80,15 @@ void nnc_tid_set_variation(u64 *tid, u8 variation)
 void nnc_dumpmem(void *mem_, u32 len)
 {
 	u8 *mem = mem_;
+	const char *atfmt = "0x%02X: ";
+	/* a little ugly but it works */
+	if(len > 0xFFFFFFFF) atfmt = "0x%016X: ";
+	if(len > 0xFFFF) atfmt = "0x%08X: ";
+	if(len > 0xFF) atfmt = "0x%04X: ";
 	for(u32 i = 0; i < len; i += 0x10)
 	{
 		int row = MIN(0x10, len - i);
+		printf(atfmt, i);
 		for(int j = 0; j < row; ++j)
 			printf("%02X ", mem[i + j]);
 		printf("%*s", (0x10 - row) * 3, "");

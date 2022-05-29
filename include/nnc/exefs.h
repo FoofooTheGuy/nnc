@@ -1,4 +1,3 @@
-// vim: ft=c.doxygen
 #ifndef inc_nnc_exefs_h
 #define inc_nnc_exefs_h
 /** \file  exefs.h

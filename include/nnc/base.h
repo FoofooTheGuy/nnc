@@ -1,4 +1,3 @@
-// vim: ft=c.doxygen
 /** \file  base.h
  *  \brief Basic type definitions & functions.
  */
@@ -53,7 +52,7 @@ enum nnc_result_codes {
 	NNC_R_KEY_NOT_FOUND,   ///< Key not found.
 	NNC_R_MISMATCH,        ///< Mismatch.
 	NNC_R_SEED_NOT_FOUND,  ///< Seed not found.
-	NNC_R_UNSUPPORTED_VER, ///< Unsupported version.
+	NNC_R_UNSUPPORTED,     ///< Unsupported.
 	NNC_R_INVAL,           ///< Invalid parameter(s).
 	NNC_R_BAD_ALIGN,       ///< Bad alignment.
 };

@@ -144,7 +144,7 @@ int ncch_info_main(int argc, char *argv[])
 	, MU_ARG(header.content_size)
 	, header.partition_id, header.maker_code, * (nnc_u32 *) header.maker_code, header.version
 	, header.seed_hash, header.title_id, header.product_code
-	, header.extheader_size , get_crypt_support(header.crypt_method)
+	, header.exheader_size , get_crypt_support(header.crypt_method)
 	/* i don't think this could ever be true, but it's here just in case */
 	, (header.flags & NNC_NCCH_USES_SEED && header.crypt_method != NNC_CRYPT_960)
 		? " (Uses seed, so really since 9.6.0-X)" : ""
@@ -153,7 +153,7 @@ int ncch_info_main(int argc, char *argv[])
 	, MU_ARG(header.logo_offset), MU_ARG(header.logo_size), MU_ARG(header.exefs_offset)
 	, MU_ARG(header.exefs_size), MU_ARG(header.romfs_offset), MU_ARG(header.romfs_size));
 	printf(" Logo Region Hash             : "); print_hash(header.logo_hash); puts("");
-	printf(" Extended Header Region Hash  : "); print_hash(header.extheader_hash); puts("");
+	printf(" Extended Header Region Hash  : "); print_hash(header.exheader_hash); puts("");
 	printf(" ExeFS Region Hash            : "); print_hash(header.exefs_hash); puts("");
 	printf(" RomFS Region Hash            : "); print_hash(header.romfs_hash); puts("");
 
@@ -208,6 +208,21 @@ int ncch_info_main(int argc, char *argv[])
 			puts("(not present)");
 
 		NNC_RS_CALL0(exefs, close);
+	}
+	else
+		puts("(failed to read)");
+
+	nnc_ncch_section_stream exheader;
+	printf(" Extended Header Block0       : ");
+	if(!(header.flags & NNC_NCCH_NO_CRYPTO) && !crypt)
+		puts(NO_CRYPT);
+	else if(nnc_ncch_section_exheader(&header, NNC_RSP(&f), &kpair, &exheader) == NNC_R_OK)
+	{
+		nnc_u8 block0[0x10]; nnc_u32 total;
+		if(NNC_RS_CALL(exheader, read, block0, 0x10, &total) == NNC_R_OK && total == 0x10)
+			nnc_dumpmem(block0, 0x10);
+		else
+			puts("(failed to read)");
 	}
 	else
 		puts("(failed to read)");

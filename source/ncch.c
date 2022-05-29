@@ -6,6 +6,7 @@
 #include "./internal.h"
 
 #define EXHEADER_OFFSET NNC_MEDIA_UNIT
+#define EXHEADER_SIZE 0x800
 
 
 static u32 u32pow(u32 x, u8 y)
@@ -38,8 +39,8 @@ result nnc_read_ncch_header(rstream *rs, nnc_ncch_header *ncch)
 	/* 0x130 */ memcpy(ncch->logo_hash, &header[0x130], sizeof(nnc_sha256_hash));
 	/* 0x150 */ memcpy(ncch->product_code, &header[0x150], 0x10);
 	/* 0x150 */ ncch->product_code[0x10] = '\0';
-	/* 0x160 */ memcpy(ncch->extheader_hash, &header[0x160], sizeof(nnc_sha256_hash));
-	/* 0x180 */ ncch->extheader_size = LE32P(&header[0x180]);
+	/* 0x160 */ memcpy(ncch->exheader_hash, &header[0x160], sizeof(nnc_sha256_hash));
+	/* 0x180 */ ncch->exheader_size = LE32P(&header[0x180]);
 	/* 0x184 */ /* reserved */
 	/* 0x188 */ /* ncchflags[0] */
 	/* 0x189 */ /* ncchflags[1] */
@@ -97,6 +98,22 @@ result nnc_ncch_section_exefs_header(nnc_ncch_header *ncch, nnc_rstream *rs,
 	u8 iv[0x10]; result ret;
 	TRY(nnc_get_ncch_iv(ncch, NNC_SECTION_EXEFS, iv));
 	SUBVIEW(enc, ncch->exefs_offset, 1);
+	return nnc_aes_ctr_open(&section->u.enc.crypt, NNC_RSP(&section->u.enc.sv),
+		&kp->primary, iv);
+}
+
+nnc_result nnc_ncch_section_exheader(nnc_ncch_header *ncch, nnc_rstream *rs,
+	nnc_keypair *kp, nnc_ncch_section_stream *section)
+{
+	if(ncch->exheader_size == 0) return NNC_R_NOT_FOUND;
+	/* for some reason the header says it's 0x400 bytes whilest it really is 0x800 bytes */
+	if(ncch->exheader_size != 0x400) return NNC_R_CORRUPT;
+	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
+		return SUBVIEW_R(dec, EXHEADER_OFFSET, EXHEADER_SIZE), NNC_R_OK;
+
+	u8 iv[0x10]; result ret;
+	TRY(nnc_get_ncch_iv(ncch, NNC_SECTION_EXHEADER, iv));
+	SUBVIEW_R(enc, EXHEADER_OFFSET, EXHEADER_SIZE);
 	return nnc_aes_ctr_open(&section->u.enc.crypt, NNC_RSP(&section->u.enc.sv),
 		&kp->primary, iv);
 }

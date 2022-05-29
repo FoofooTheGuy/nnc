@@ -1,10 +1,8 @@
-// vim: ft=c.doxygen
 /** \file  sigcert.h
  *  \brief Signature & certificate chain parsing code that is re-used throughout several 3ds formats.
  */
 #ifndef inc_nnc_sigcert_h
 #define inc_nnc_sigcert_h
-
 #include <nnc/read-stream.h>
 #include <nnc/base.h>
 NNC_BEGIN
@@ -42,5 +40,6 @@ nnc_result nnc_read_sig(nnc_rstream *rs, nnc_signature *sig);
  */
 const char *nnc_sigstr(enum nnc_sigtype sig);
 
+NNC_END
 #endif
 
