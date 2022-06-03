@@ -83,8 +83,9 @@ void nnc_dumpmem(void *mem_, u32 len)
 	const char *atfmt = "0x%02X: ";
 	/* a little ugly but it works */
 	if(len > 0xFFFFFFFF) atfmt = "0x%016X: ";
-	if(len > 0xFFFF) atfmt = "0x%08X: ";
-	if(len > 0xFF) atfmt = "0x%04X: ";
+	else if(len > 0xFFFF) atfmt = "0x%08X: ";
+	else if(len > 0xFF) atfmt = "0x%04X: ";
+	if(len <= 0x10) atfmt = "";
 	for(u32 i = 0; i < len; i += 0x10)
 	{
 		int row = MIN(0x10, len - i);

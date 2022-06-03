@@ -151,6 +151,27 @@ nnc_result nnc_ncch_section_exheader(nnc_ncch_header *ncch, nnc_rstream *rs,
 nnc_result nnc_ncch_exefs_subview(nnc_ncch_header *ncch, nnc_rstream *rs,
 	nnc_keypair *kp, nnc_ncch_section_stream *file, nnc_exefs_file_header *header);
 
+/** \brief          Opens the plain section in an NCCH used for SDK strings.
+ *  \param ncch     NCCH to open plain section of.
+ *  \param rs       Stream associated with the NCCH.
+ *  \param section  Output section.
+ *  \returns
+ *  \p NNC_R_NOT_FOUND => No plain section is present in this file.
+ */
+nnc_result nnc_ncch_section_plain(nnc_ncch_header *ncch, nnc_rstream *rs,
+	nnc_subview *section);
+
+/** \brief          Opens the logo section in an NCCH.
+ *  \param ncch     NCCH to open logo of.
+ *  \param rs       Stream associated with the NCCH.
+ *  \param section  Output section.
+ *  \returns
+ *  \p NNC_R_NOT_FOUND => No logo is present in this file.
+ *  \p NNC_R_CORRUPT => Logo is not the expected size.
+ */
+nnc_result nnc_ncch_section_logo(nnc_ncch_header *ncch, nnc_rstream *rs,
+	nnc_subview *section);
+
 NNC_END
 #endif
 

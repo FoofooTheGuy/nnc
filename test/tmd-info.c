@@ -17,7 +17,7 @@ static const char *flags2str(nnc_u16 flags)
 {
 	static char buffer[0x100];
 	int pos = 0;
-#define ADD(flag, s) if(flags & (NNC_CHUNKF_##flag)) { strcpy(buffer + pos, s ", "); pos += strlen(s); buffer[pos] = '\0'; }
+#define ADD(flag, s) if(flags & (NNC_CHUNKF_##flag)) { strcpy(buffer + pos, s ", "); pos += strlen(s) + 2; buffer[pos] = '\0'; }
 	ADD(ENCRYPTED, "encrypted")
 	ADD(DISC, "disc")
 	ADD(CFM, "CFM")

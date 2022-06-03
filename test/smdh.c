@@ -55,7 +55,7 @@ static const char *get_lockout(nnc_u32 lockout)
 		return "WORLD";
 	static char buf[0x200];
 	int of = 0;
-#define DO(lock, name) if(lockout & NNC_LOCKOUT_##lock) { strcat(buf, name " , "); of += strlen(name ", "); }
+#define DO(lock, name) if(lockout & NNC_LOCKOUT_##lock) { strcat(buf, name ", "); of += strlen(name ", "); }
 	DO(JAPAN, "Japan");
 	DO(NORTH_AMERICA, "North America");
 	DO(EUROPE, "Europe");

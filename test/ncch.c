@@ -227,6 +227,33 @@ int ncch_info_main(int argc, char *argv[])
 	else
 		puts("(failed to read)");
 
+	nnc_subview plain;
+	printf(" Plain Section Block0         : ");
+	if(nnc_ncch_section_plain(&header, NNC_RSP(&f), &plain) == NNC_R_OK)
+	{
+		nnc_u8 block0[0x10]; nnc_u32 total;
+		if(NNC_RS_CALL(plain, read, block0, 0x10, &total) == NNC_R_OK && total == 0x10)
+			nnc_dumpmem(block0, 0x10);
+		else
+			puts("(failed to read)");
+	}
+	else
+		puts("(not available)");
+
+	nnc_subview logo;
+	printf(" Logo Section Block0          : ");
+	if(nnc_ncch_section_logo(&header, NNC_RSP(&f), &logo) == NNC_R_OK)
+	{
+		nnc_u8 block0[0x10]; nnc_u32 total;
+		if(NNC_RS_CALL(logo, read, block0, 0x10, &total) == NNC_R_OK && total == 0x10)
+			nnc_dumpmem(block0, 0x10);
+		else
+			puts("(failed to read)");
+	}
+	else
+		puts("(not available)");
+
+
 	nnc_free_seeddb(&seeddb);
 	NNC_RS_CALL0(f, close);
 	return 0;

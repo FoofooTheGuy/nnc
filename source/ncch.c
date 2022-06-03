@@ -121,6 +121,7 @@ nnc_result nnc_ncch_section_exheader(nnc_ncch_header *ncch, nnc_rstream *rs,
 nnc_result nnc_ncch_exefs_subview(nnc_ncch_header *ncch, nnc_rstream *rs,
 	nnc_keypair *kp, nnc_ncch_section_stream *section, nnc_exefs_file_header *header)
 {
+	if(ncch->exefs_size == 0) return NNC_R_NOT_FOUND;
 	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
 		return SUBVIEW_R(dec,
 			NNC_MU_TO_BYTE(ncch->exefs_offset) + NNC_EXEFS_HEADER_SIZE + header->offset,
@@ -146,5 +147,24 @@ nnc_result nnc_ncch_exefs_subview(nnc_ncch_header *ncch, nnc_rstream *rs,
 		NNC_MU_TO_BYTE(ncch->exefs_offset) + NNC_EXEFS_HEADER_SIZE + header->offset,
 		header->size);
 	return nnc_aes_ctr_open(&section->u.enc.crypt, NNC_RSP(&section->u.enc.sv), key, iv);
+}
+
+nnc_result nnc_ncch_section_plain(nnc_ncch_header *ncch, nnc_rstream *rs,
+	nnc_subview *section)
+{
+	if(ncch->plain_size == 0) return NNC_R_NOT_FOUND;
+	nnc_subview_open(section, rs, NNC_MU_TO_BYTE(ncch->plain_offset),
+		NNC_MU_TO_BYTE(ncch->plain_size));
+	return 0;
+}
+
+nnc_result nnc_ncch_section_logo(nnc_ncch_header *ncch, nnc_rstream *rs,
+	nnc_subview *section)
+{
+	if(ncch->logo_size == 0) return NNC_R_NOT_FOUND;
+	if(ncch->logo_size != (0x2000 / NNC_MEDIA_UNIT)) return NNC_R_CORRUPT;
+	nnc_subview_open(section, rs, NNC_MU_TO_BYTE(ncch->logo_offset),
+		NNC_MU_TO_BYTE(ncch->logo_size));
+	return 0;
 }
 
