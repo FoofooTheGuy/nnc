@@ -145,5 +145,6 @@ nnc_result nnc_cia_open_content(nnc_cia_content_reader *reader, nnc_u16 index,
  */
 void nnc_cia_free_reader(nnc_cia_content_reader *reader);
 
+NNC_END
 #endif
 

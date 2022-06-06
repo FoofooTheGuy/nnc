@@ -103,5 +103,6 @@ bool nnc_verify_tmd_chunk_records(nnc_rstream *rs, nnc_tmd_header *tmd, nnc_cinf
  */
 nnc_result nnc_read_tmd_chunk_records(nnc_rstream *rs, nnc_tmd_header *tmd, nnc_chunk_record *records);
 
+NNC_END
 #endif
 

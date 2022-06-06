@@ -3,7 +3,7 @@
 #include <string.h>
 #include "./internal.h"
 
-#include "./exheader_syscall_tab.c" /* forgive me for my sins */
+#include "./exheader_syscall_tab.inc" /* forgive me for my sins */
 
 
 static result do_kernel_caps(nnc_exheader *exh, nnc_u8 *buf)
