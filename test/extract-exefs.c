@@ -22,17 +22,19 @@ int extract_exefs_main(int argc, char *argv[])
 		die("f->open() failed");
 
 	nnc_exefs_file_header headers[NNC_EXEFS_MAX_FILES];
-	nnc_sha256_hash hashes[NNC_EXEFS_MAX_FILES];
-	if(nnc_read_exefs_header(NNC_RSP(&f), headers, hashes, NULL) != NNC_R_OK)
+	if(nnc_read_exefs_header(NNC_RSP(&f), headers, NULL) != NNC_R_OK)
 		die("failed reading exefs file headers");
 
 	char pathbuf[128];
 	for(nnc_u8 i = 0; i < NNC_EXEFS_MAX_FILES && nnc_exefs_file_in_use(&headers[i]); ++i)
 	{
+		nnc_subview sv;
+		nnc_exefs_subview(NNC_RSP(&f), &sv, &headers[i]);
+
 		printf("%8s @ %08X [%08X] (", headers[i].name, headers[i].offset, headers[i].size);
 		for(nnc_u8 j = 0; j < sizeof(nnc_sha256_hash); ++j)
-			printf("%02X", hashes[i][j]);
-		printf(nnc_verify_file(NNC_RSP(&f), headers, hashes, i) ? "  HASH OK" : "  NOT OK");
+			printf("%02X", headers[i].hash[j]);
+		printf(nnc_verify_file(NNC_RSP(&sv), &headers[i]) ? "  HASH OK" : "  NOT  OK");
 		printf(")");
 
 		const char *fname = NULL;
@@ -50,11 +52,10 @@ int extract_exefs_main(int argc, char *argv[])
 			fname = headers[i].name;
 		}
 
-		nnc_subview sv;
-		nnc_exefs_subview(NNC_RSP(&f), &sv, &headers[i]);
 		nnc_u32 read_size;
 		nnc_u8 *buf = malloc(headers[i].size);
-		if(NNC_RS_CALL(f, read, buf, headers[i].size, &read_size) != NNC_R_OK || read_size != headers[i].size)
+		NNC_RS_CALL(sv, seek_abs, 0);
+		if(NNC_RS_CALL(sv, read, buf, headers[i].size, &read_size) != NNC_R_OK || read_size != headers[i].size)
 			die("\nfailed to extract exefs file %s", headers[i].name);
 		sprintf(pathbuf, "%s/%s", outdir, fname);
 		printf(" => %s\n", pathbuf);

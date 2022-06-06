@@ -39,7 +39,7 @@ typedef struct nnc_u128 {
 /** Length of a u128 in hex without the "0x" prefix. */
 #define NNC_U128_LEN 0x20
 
-/** Xor \p a with \p b saving the result in \pa and returning the pointer. */
+/** Xor \p a with \p b saving the result in \p a and returning the pointer. */
 nnc_u128 *nnc_u128_xor(nnc_u128 *a, const nnc_u128 *b);
 /** Add \p a with \p b saving the result in \p a and returning the pointer. */
 nnc_u128 *nnc_u128_add(nnc_u128 *a, const nnc_u128 *b);

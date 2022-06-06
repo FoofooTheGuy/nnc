@@ -54,7 +54,7 @@ static const nnc_rstream_funcs file_funcs = {
 
 result nnc_file_open(nnc_file *self, const char *name)
 {
-	self->f = fopen(name, "r");
+	self->f = fopen(name, "rb");
 	if(!self->f) return NNC_R_FAIL_OPEN;
 
 	fseek(self->f, 0, SEEK_END);

@@ -170,6 +170,12 @@ static const struct _kstore {
 	const u128 kx_ncch1;
 	const u128 kx_ncchA;
 	const u128 kx_ncchB;
+	const u128 ky_comy0;
+	const u128 ky_comy1;
+	const u128 ky_comy2;
+	const u128 ky_comy3;
+	const u128 ky_comy4;
+	const u128 ky_comy5;
 } default_keys[2] =
 {
 	{	/* retail */
@@ -177,12 +183,24 @@ static const struct _kstore {
 		.kx_ncch1 = NNC_HEX128(0xCEE7D8AB30C00DAE,850EF5E382AC5AF3),
 		.kx_ncchA = NNC_HEX128(0x82E9C9BEBFB8BDB8,75ECC0A07D474374),
 		.kx_ncchB = NNC_HEX128(0x45AD04953992C7C8,93724A9A7BCE6182),
+		.ky_comy0 = NNC_HEX128(0x64C5FD55DD3AD988,325BAAEC5243DB98),
+		.ky_comy1 = NNC_HEX128(0x4AAA3D0E27D4D728,D0B1B433F0F9CBC8),
+		.ky_comy2 = NNC_HEX128(0xFBB0EF8CDBB0D8E4,53CD99344371697F),
+		.ky_comy3 = NNC_HEX128(0x25959B7AD0409F72,684198BA2ECD7DC6),
+		.ky_comy4 = NNC_HEX128(0x7ADA22CAFFC476CC,8297A0C7CEEEEEBE),
+		.ky_comy5 = NNC_HEX128(0xA5051CA1B37DCF3A,FBCF8CC1EDD9CE02),
 	},
 	{	/* dev */
 		.kx_ncch0 = NNC_HEX128(0x510207515507CBB1,8E243DCB85E23A1D),
 		.kx_ncch1 = NNC_HEX128(0x81907A4B6F1B4732,3A677974CE4AD71B),
 		.kx_ncchA = NNC_HEX128(0x304BF1468372EE64,115EBD4093D84276),
 		.kx_ncchB = NNC_HEX128(0x6C8B2944A0726035,F941DFC018524FB6),
+		.ky_comy0 = NNC_HEX128(0x55A3F872BDC80C55,5A654381139E153B),
+		.ky_comy1 = NNC_HEX128(0x4434ED14820CA1EB,AB82C16E7BEF0C25),
+		.ky_comy2 = NNC_HEX128(0xF62E3F958E28A21F,289EEC71A86629DC),
+		.ky_comy3 = NNC_HEX128(0x2B49CB6F9998D9AD,94F2EDE7B5DA3E27),
+		.ky_comy4 = NNC_HEX128(0x750552BFAA1C0407,55C8D59A55F9AD1F),
+		.ky_comy5 = NNC_HEX128(0xAADA4CA8F6E5A977,E0A0F9E476CF0D63),
 	}
 };
 
@@ -190,12 +208,17 @@ nnc_result nnc_keyset_default(nnc_keyset *ks, bool dev)
 {
 	const struct _kstore *s = dev ? &default_keys[1] : &default_keys[0];
 	u8 type = ks->flags & TYPE_FIELD, mtype = TYPE_FLAG(dev);
-	if(type && type != mtype)
-		return NNC_R_MISMATCH;
+	if(type & mtype) return NNC_R_MISMATCH;
 	ks->kx_ncch0 = s->kx_ncch0;
 	ks->kx_ncch1 = s->kx_ncch1;
 	ks->kx_ncchA = s->kx_ncchA;
 	ks->kx_ncchB = s->kx_ncchB;
+	ks->ky_comy0 = s->ky_comy0;
+	ks->ky_comy1 = s->ky_comy1;
+	ks->ky_comy2 = s->ky_comy2;
+	ks->ky_comy3 = s->ky_comy3;
+	ks->ky_comy4 = s->ky_comy4;
+	ks->ky_comy5 = s->ky_comy5;
 	ks->flags |= DEFAULT | mtype;
 	return NNC_R_OK;
 }
@@ -343,7 +366,7 @@ result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, u8 for_section,
 
 /* nnc_aes_ctr */
 
-static void redo_ctr(nnc_aes_ctr *ac, u32 offset)
+static void redo_ctr_iv(nnc_aes_ctr *ac, u32 offset)
 {
 	u128 ctr = NNC_PROMOTE128(offset / 0x10);
 	nnc_u128_add(&ctr, &ac->iv);
@@ -376,7 +399,7 @@ static result aes_ctr_seek_abs(nnc_aes_ctr *self, u32 pos)
 	 * to save a bit of time. */
 	if(cpos == pos) return NNC_R_OK;
 	NNC_RS_PCALL(self->child, seek_abs, pos);
-	redo_ctr(self, pos);
+	redo_ctr_iv(self, pos);
 	return NNC_R_OK;
 }
 
@@ -388,7 +411,7 @@ static result aes_ctr_seek_rel(nnc_aes_ctr *self, u32 pos)
 	if(pos == 0) return NNC_R_OK;
 	pos = NNC_RS_PCALL0(self->child, tell) + pos;
 	NNC_RS_PCALL(self->child, seek_abs, pos);
-	redo_ctr(self, pos);
+	redo_ctr_iv(self, pos);
 	return NNC_R_OK;
 }
 
@@ -423,14 +446,135 @@ nnc_result nnc_aes_ctr_open(nnc_aes_ctr *self, nnc_rstream *child, u128 *key, u8
 	if(!(self->crypto_ctx = malloc(sizeof(mbedtls_aes_context))))
 		return NNC_R_NOMEM;
 	self->iv = nnc_u128_import_be(iv);
-	memcpy(self->ctr, iv, 0x10);
 	self->child = child;
 
 	u8 buf[0x10];
 	nnc_u128_bytes_be(key, buf);
 	mbedtls_aes_setkey_enc(self->crypto_ctx, buf, 128);
 
-	redo_ctr(self, 0);
+	redo_ctr_iv(self, 0);
+	return NNC_R_OK;
+}
+
+static nnc_result redo_cbc_iv(nnc_aes_cbc *self, u32 offset)
+{
+	if(offset == 0) memcpy(self->iv, self->init_iv, 0x10);
+	else
+	{
+		/* this code doesn't actually work (?) */
+		return NNC_R_UNSUPPORTED;
+
+		result ret, saved;
+		/* the new IV is the previous encrypted block */
+		TRY(NNC_RS_PCALL(self->child, seek_rel, -16));
+		u32 read;
+		saved = NNC_RS_PCALL(self->child, read, self->iv, 16, &read);
+		TRY(NNC_RS_PCALL(self->child, seek_rel, +16));
+		if(saved != NNC_R_OK || read != 0x10)
+			return NNC_R_TOO_SMALL;
+	}
+	return NNC_R_OK;
+}
+
+static result aes_cbc_read(nnc_aes_cbc *self, u8 *buf, u32 max, u32 *totalRead)
+{
+	if(max % 0x10 != 0) return NNC_R_BAD_ALIGN;
+
+	result ret;
+	TRY(NNC_RS_PCALL(self->child, read, buf, max, totalRead));
+
+	/* if we read unaligned we need to align it down */
+	if(*totalRead % 0x10 != 0) *totalRead = ALIGN(*totalRead, 0x10) - 0x10;
+
+	/* now we gotta decrypt *totalRead bytes in buf */
+	mbedtls_aes_crypt_cbc(self->crypto_ctx, MBEDTLS_AES_DECRYPT, *totalRead, self->iv,
+		buf, buf);
+	return NNC_R_OK;
+}
+
+static result aes_cbc_seek_abs(nnc_aes_cbc *self, u32 pos)
+{
+	if(pos % 0x10 != 0) return NNC_R_BAD_ALIGN;
+	u32 cpos = NNC_RS_PCALL0(self->child, tell);
+	/* i doubt this will happen but it's here anyways
+	 * to save a bit of time. */
+	if(cpos == pos) return NNC_R_OK;
+	NNC_RS_PCALL(self->child, seek_abs, pos);
+	return redo_cbc_iv(self, pos);
+}
+
+static result aes_cbc_seek_rel(nnc_aes_cbc *self, u32 pos)
+{
+	if(pos % 0x10 != 0) return NNC_R_BAD_ALIGN;
+	/* i doubt this will happen but it's here anyways
+	 * to save a bit of time. */
+	if(pos == 0) return NNC_R_OK;
+	pos = NNC_RS_PCALL0(self->child, tell) + pos;
+	NNC_RS_PCALL(self->child, seek_abs, pos);
+	return redo_cbc_iv(self, pos);
+}
+
+static u32 aes_cbc_size(nnc_aes_cbc *self)
+{
+	return NNC_RS_PCALL0(self->child, size);
+}
+
+static u32 aes_cbc_tell(nnc_aes_cbc *self)
+{
+	return NNC_RS_PCALL0(self->child, tell);
+}
+
+static void aes_cbc_close(nnc_aes_cbc *self)
+{
+	mbedtls_aes_free(self->crypto_ctx);
+	free(self->crypto_ctx);
+}
+
+static const nnc_rstream_funcs aes_cbc_funcs = {
+	.read = (nnc_read_func) aes_cbc_read,
+	.seek_abs = (nnc_seek_abs_func) aes_cbc_seek_abs,
+	.seek_rel = (nnc_seek_rel_func) aes_cbc_seek_rel,
+	.size = (nnc_size_func) aes_cbc_size,
+	.close = (nnc_close_func) aes_cbc_close,
+	.tell = (nnc_tell_func) aes_cbc_tell,
+};
+
+nnc_result nnc_aes_cbc_open(nnc_aes_cbc *self, nnc_rstream *child, u8 key[0x10], u8 iv[0x10])
+{
+	self->funcs = &aes_cbc_funcs;
+	if(!(self->crypto_ctx = malloc(sizeof(mbedtls_aes_context))))
+		return NNC_R_NOMEM;
+	memcpy(self->init_iv, iv, 0x10);
+	memcpy(self->iv, iv, 0x10);
+	self->child = child;
+
+	mbedtls_aes_setkey_dec(self->crypto_ctx, key, 128);
+
+	return NNC_R_OK;
+}
+
+result nnc_decrypt_tkey(nnc_ticket *tik, nnc_keyset *ks, nnc_u8 decrypted[0x10])
+{
+	u128 *used_keyy;
+	switch(tik->common_keyy)
+	{
+	case 0: used_keyy = &ks->ky_comy0; break;
+	case 1: used_keyy = &ks->ky_comy1; break;
+	case 2: used_keyy = &ks->ky_comy2; break;
+	case 3: used_keyy = &ks->ky_comy3; break;
+	case 4: used_keyy = &ks->ky_comy4; break;
+	case 5: used_keyy = &ks->ky_comy5; break;
+	default: return NNC_R_CORRUPT; /* invalid key selected */
+	}
+	u64 iv[2] = { BE64(tik->title_id), 0 };
+	mbedtls_aes_context ctx;
+	u8 buf[0x10];
+
+	nnc_u128_bytes_be(used_keyy, buf);
+	mbedtls_aes_setkey_dec(&ctx, buf, 128);
+	mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_DECRYPT, 0x10, (u8 *) iv,
+		tik->title_key, decrypted);
+	mbedtls_aes_free(&ctx);
 	return NNC_R_OK;
 }
 

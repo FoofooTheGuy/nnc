@@ -1,9 +1,10 @@
-#ifndef inc_nnc_smdh_h
-#define inc_nnc_smdh_h
 /** \file  smdh.h
  *  \brief Functions relating to SMDH.
  *  \see   https://www.3dbrew.org/wiki/SMDH
  */
+#ifndef inc_nnc_smdh_h
+#define inc_nnc_smdh_h
+
 #include <nnc/read-stream.h>
 #include <nnc/base.h>
 NNC_BEGIN

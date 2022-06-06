@@ -56,6 +56,7 @@
 #define TRYB(expr) if(( expr ) != NNC_R_OK) return false
 #define TRYV(expr) if(( expr ) != NNC_R_OK) return
 #define TRY(expr) if((ret = ( expr )) != NNC_R_OK) return ret
+#define TRYLBL(expr, label) if((ret = ( expr )) != NNC_R_OK) goto label
 
 #define ALIGN(a, n) (((a) + ((n) - 1)) & ~((n) - 1))
 

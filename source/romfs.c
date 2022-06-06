@@ -11,7 +11,8 @@
 
 result nnc_read_romfs_header(rstream *rs, nnc_romfs_header *romfs)
 {
-	u8 ivfc_header[0x5C], l3_header[0x28];
+	/* in reality this is only 0x5C & 0x28 bytes, but we need to align reads */
+	u8 ivfc_header[0x60], l3_header[0x30];
 	result ret;
 	TRY(read_exact(rs, ivfc_header, sizeof(ivfc_header)));
 

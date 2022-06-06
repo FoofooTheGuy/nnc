@@ -1,8 +1,9 @@
-#ifndef inc_nnc_utf_h
-#define inc_nnc_utf_h
 /** \file  utf.h
  *  \brief UTF conversion.
  */
+#ifndef inc_nnc_utf_h
+#define inc_nnc_utf_h
+
 #include <nnc/base.h>
 NNC_BEGIN
 

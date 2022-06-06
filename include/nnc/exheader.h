@@ -153,7 +153,7 @@ typedef struct nnc_exheader {
 	nnc_u32 system_savedata_ids[2];                                           ///< System savedata IDs.
 	nnc_u32 storage_accessible_unique_ids[2];                                 ///< Storage accessible unique IDs.
 	nnc_u64 access_info;                                                      ///< Filesystem access info, see \ref nnc_exheader_filesystem_access_info.
-	nnc_u8 other_attribs;                                                     ///< Other attributes, see \ref nnc_exheader_other_atribs.
+	nnc_u8 other_attribs;                                                     ///< Other attributes, see \ref nnc_exheader_other_attribs.
 	char service_access_control[NNC_EXHDR_SAC_930][9];                        ///< Service access control, that is, NULL-terminated service names that this title requires.
 	nnc_u8 resource_limit_category;                                           ///< See \ref nnc_exheader_resource_limit_category.
 		/* ARM11 kernel capabilities */

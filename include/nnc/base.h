@@ -6,7 +6,7 @@
 
 #ifdef __cplusplus
 	#define NNC_BEGIN extern "C" {
-	#define NNC_END    }
+	#define NNC_END   }
 #else
 	#define NNC_BEGIN
 	#define NNC_END

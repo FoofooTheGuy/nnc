@@ -2,8 +2,8 @@
  *  \brief  Functions relating to NCCH.
  *  \see    https://www.3dbrew.org/wiki/NCCH
  */
-#ifndef inc_ncch_h
-#define inc_ncch_h
+#ifndef inc_nnc_ncch_h
+#define inc_nnc_ncch_h
 
 #include <nnc/crypto.h>
 #include <nnc/exefs.h>

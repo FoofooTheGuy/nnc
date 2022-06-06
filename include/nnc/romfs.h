@@ -100,6 +100,7 @@ nnc_result nnc_romfs_open_subview(nnc_romfs_ctx *ctx, nnc_subview *sv, nnc_romfs
  *  \param ctx  Output context.
  *  \note       This function allocates dynamic memory so make sure to free
  *              \p ctx with \ref nnc_free_romfs.
+ *  \note       If this function does not return NNC_R_OK you musn't call \ref nnc_free_romfs
  */
 nnc_result nnc_init_romfs(nnc_rstream *rs, nnc_romfs_ctx *ctx);
 

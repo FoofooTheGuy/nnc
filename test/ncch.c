@@ -189,7 +189,7 @@ int ncch_info_main(int argc, char *argv[])
 
 		NNC_RS_CALL(exefs, seek_abs, 0);
 		nnc_exefs_file_header headers[NNC_EXEFS_MAX_FILES];
-		nnc_read_exefs_header(NNC_RSP(&exefs), headers, NULL, NULL);
+		nnc_read_exefs_header(NNC_RSP(&exefs), headers, NULL);
 		nnc_i8 index = nnc_find_exefs_file_index("icon", headers);
 		printf("   /icon (SMDH) Block0        : ");
 		if(index != -1)

@@ -3,7 +3,9 @@
  */
 #ifndef inc_nnc_crypto_h
 #define inc_nnc_crypto_h
+
 #include <nnc/read-stream.h>
+#include <nnc/ticket.h>
 #include <nnc/u128.h>
 #include <nnc/base.h>
 NNC_BEGIN
@@ -25,6 +27,12 @@ typedef struct nnc_keyset {
 	nnc_u128 kx_ncch1; ///< Keyslot 0x25.
 	nnc_u128 kx_ncchA; ///< Keyslot 0x18.
 	nnc_u128 kx_ncchB; ///< Keyslot 0x1B.
+	nnc_u128 ky_comy0; ///< Common Key 0 (application).
+	nnc_u128 ky_comy1; ///< Common Key 1 (system).
+	nnc_u128 ky_comy2; ///< Common key 2.
+	nnc_u128 ky_comy3; ///< Common key 3.
+	nnc_u128 ky_comy4; ///< Common key 4.
+	nnc_u128 ky_comy5; ///< Common key 5.
 } nnc_keyset;
 
 /** Container struct to hold seeds. */
@@ -49,6 +57,14 @@ typedef struct nnc_aes_ctr {
 	nnc_u8 ctr[0x10];
 	nnc_u128 iv;
 } nnc_aes_ctr;
+
+typedef struct nnc_aes_cbc {
+	const struct nnc_rstream_funcs *funcs;
+	void *crypto_ctx; ///< Context for the cryptographic library used.
+	nnc_rstream *child;
+	nnc_u8 init_iv[0x10];
+	nnc_u8 iv[0x10];
+} nnc_aes_cbc;
 
 typedef struct nnc_keypair {
 	nnc_u128 primary;   ///< Also known as the "info menu" key.
@@ -176,7 +192,7 @@ nnc_result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, nnc_u8 for_section,
  *  \param child  Child stream to decrypt from.
  *  \param key    Encryption key.
  *  \param iv     Initial counter.
- *  \warning      As this stream does not keep it's own offsets do not open one multiple
+ *  \warning      As this stream does not keep it's own offsets, do not open one multiple
  *                times to one substream.
  *  \note         All operations to this stream should be aligned to 0x10 bytes.
  *  \note         Calling close on this stream doesn't close the substream.
@@ -184,6 +200,21 @@ nnc_result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, nnc_u8 for_section,
  *  \p NNC_R_NOMEM => Failed to allocate AES-CTR context.
  */
 nnc_result nnc_aes_ctr_open(nnc_aes_ctr *self, nnc_rstream *child, nnc_u128 *key,
+	nnc_u8 iv[0x10]);
+
+/** \brief        Decrypt an AES-CBC stream on-the-fly.
+ *  \param self   Output AES-CBC stream.
+ *  \param child  Child stream to decrypt from.
+ *  \param key    Encryption key.
+ *  \param iv     IV.
+ *  \warning      As this stream does not keep it's own offsets, do not open one multiple
+ *                times to one substream.
+ *  \note         All operations to this stream should be aligned to 0x10 bytes.
+ *  \note         Calling close on this stream doesn't close the substream.
+ *  \returns
+ *  \p NNC_R_NOMEM => Failed to allocate AES-CBC context.
+ */
+nnc_result nnc_aes_cbc_open(nnc_aes_cbc *self, nnc_rstream *child, nnc_u8 key[0x10],
 	nnc_u8 iv[0x10]);
 
 /** \brief         Get a key pair for an NCCH.
@@ -201,6 +232,15 @@ nnc_result nnc_aes_ctr_open(nnc_aes_ctr *self, nnc_rstream *child, nnc_u128 *key
  */
 nnc_result nnc_fill_keypair(nnc_keypair *output, nnc_keyset *ks, nnc_seeddb *seeddb,
 	struct nnc_ncch_header *ncch);
+
+/** \brief            Decrypt a title key from a ticket.
+ *  \param tik        Ticket from \ref nnc_read_ticket.
+ *  \param ks         Keyset from \ref nnc_keyset_default.
+ *  \param decrypted  Output decrypted title key.
+ *  \returns
+ *  \p NNC_R_CORRUPT => Ticket keyY is invalid.
+ */
+nnc_result nnc_decrypt_tkey(nnc_ticket *tik, nnc_keyset *ks, nnc_u8 decrypted[0x10]);
 
 NNC_END
 #endif
