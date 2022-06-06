@@ -461,15 +461,11 @@ static nnc_result redo_cbc_iv(nnc_aes_cbc *self, u32 offset)
 	if(offset == 0) memcpy(self->iv, self->init_iv, 0x10);
 	else
 	{
-		/* this code doesn't actually work (?) */
-		return NNC_R_UNSUPPORTED;
-
 		result ret, saved;
 		/* the new IV is the previous encrypted block */
-		TRY(NNC_RS_PCALL(self->child, seek_rel, -16));
+		TRY(NNC_RS_PCALL(self->child, seek_abs, NNC_RS_PCALL0(self->child, tell) - 16));
 		u32 read;
 		saved = NNC_RS_PCALL(self->child, read, self->iv, 16, &read);
-		TRY(NNC_RS_PCALL(self->child, seek_rel, +16));
 		if(saved != NNC_R_OK || read != 0x10)
 			return NNC_R_TOO_SMALL;
 	}

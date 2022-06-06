@@ -92,7 +92,7 @@ static nnc_result open_content(nnc_cia_content_reader *reader, nnc_chunk_record 
 {
 	if(chunk->flags & NNC_CHUNKF_ENCRYPTED)
 	{
-		u32 iv[4] = { BE32(chunk->id), 0, 0, 0 };
+		u16 iv[8] = { BE16(chunk->index), 0, 0, 0, 0, 0, 0, 0 };
 		nnc_subview_open(&content->u.enc.sv, reader->rs, offset, chunk->size);
 		return nnc_aes_cbc_open(&content->u.enc.crypt, NNC_RSP(&content->u.enc.sv),
 			reader->key, (u8 *) iv);
