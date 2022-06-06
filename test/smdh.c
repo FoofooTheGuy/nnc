@@ -13,7 +13,7 @@ static const char *index_to_lang(int i)
 	switch(i)
 	{
 	case NNC_TITLE_JAPANESE: return "Japanese";
-	case NNC_TITLE_ENLISH: return "English";
+	case NNC_TITLE_ENGLISH: return "English";
 	case NNC_TITLE_FRENCH: return "French";
 	case NNC_TITLE_GERMAN: return "German";
 	case NNC_TITLE_ITALIAN: return "Italian";

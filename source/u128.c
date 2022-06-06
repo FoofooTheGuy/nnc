@@ -77,7 +77,7 @@ u128 nnc_u128_from_hex(const char *s)
 		int cutoff = end - HALF;
 		char buf[HALF + 1];
 		buf[HALF] = '\0';
-		strncpy(buf, s, cutoff);
+		memcpy(buf, s, cutoff);
 		ret.lo = strtoull(s + cutoff, NULL, 16);
 		ret.hi = strtoull(buf, NULL, 16);
 	}

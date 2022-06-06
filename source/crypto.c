@@ -99,6 +99,8 @@ static bool find_support_file(const char *name, char *output)
 	/* no clue where to look */
 	(void) pathbuf;
 	(void) envptr;
+	(void) output;
+	(void) name;
 #endif
 
 	/* nothing found */

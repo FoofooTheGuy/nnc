@@ -79,6 +79,12 @@ enum nnc_tid_category {
  */
 void nnc_parse_version(nnc_u16 ver, nnc_u8 *major, nnc_u8 *minor, nnc_u8 *patch);
 
+/** \brief      Gets an result string from an nnc_result.
+ *  \param res  Result to get string from.
+ *  \returns    NULL if \p res is invalid.
+ */
+const char *nnc_strerror(nnc_result res);
+
 /** \{
  *  \anchor tid
  *  \name   Title IDs

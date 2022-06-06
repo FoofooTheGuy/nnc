@@ -100,3 +100,28 @@ void nnc_dumpmem(void *mem_, u32 len)
 	}
 }
 
+const char *nnc_strerror(nnc_result res)
+{
+	switch(res)
+	{
+	case NNC_R_OK: return "OK";
+	case NNC_R_FAIL_OPEN: return "failed to open";
+	case NNC_R_SEEK_RANGE: return "invalid seek range";
+	case NNC_R_FAIL_READ: return "failed to read";
+	case NNC_R_TOO_SMALL: return "data too small";
+	case NNC_R_TOO_LARGE: return "data too large";
+	case NNC_R_INVALID_SIG: return "invalid signature type";
+	case NNC_R_CORRUPT: return "corrupt";
+	case NNC_R_NOMEM: return "out of memory";
+	case NNC_R_NOT_FOUND: return "not found";
+	case NNC_R_NOT_A_FILE: return "not a file";
+	case NNC_R_KEY_NOT_FOUND: return "key not found";
+	case NNC_R_MISMATCH: return "mismatch";
+	case NNC_R_SEED_NOT_FOUND: return "seed not found";
+	case NNC_R_UNSUPPORTED: return "not supported";
+	case NNC_R_INVAL: return "invalid parameter";
+	case NNC_R_BAD_ALIGN: return "bad alignment";
+	}
+	return NULL;
+}
+

@@ -23,7 +23,7 @@ NNC_BEGIN
 
 enum nnc_title_lang {
 	NNC_TITLE_JAPANESE            = 0,  ///< Japanese.
-	NNC_TITLE_ENLISH              = 1,  ///< English.
+	NNC_TITLE_ENGLISH             = 1,  ///< English.
 	NNC_TITLE_FRENCH              = 2,  ///< French.
 	NNC_TITLE_GERMAN              = 3,  ///< German.
 	NNC_TITLE_ITALIAN             = 4,  ///< Italian.

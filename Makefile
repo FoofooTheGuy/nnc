@@ -17,7 +17,8 @@ SO_TARGET    := $(TARGET:.a=.so)
 DEPS         := $(OBJECTS:.o=.d)
 CFLAGS       += -Iinclude -std=c99
 
-.PHONY: all clean test shared run-test docs
+
+.PHONY: all clean test shared run-test docs examples
 all: $(TARGET)
 run-test: test
 	./$(TEST_TARGET)
@@ -26,6 +27,7 @@ docs:
 test: $(TARGET) $(TEST_TARGET)
 shared: CFLAGS += -fPIC
 shared: clean $(SO_TARGET) # Clean because all objects need to be built with -fPIC
+examples: bin/ bin/gm9_filename
 clean:
 	rm -rf $(BUILD) $(TARGET) $(SO_TARGET)
 
@@ -43,3 +45,10 @@ $(TARGET): $(OBJECTS)
 build/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) -c $< -o $@ $(CFLAGS) $(LIBS) -MMD -MF $(@:.o=.d)
+
+bin/:
+	@mkdir -p bin
+
+bin/gm9_filename: examples/gm9_filename.c $(TARGET)
+	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) $(LIBS)
+
