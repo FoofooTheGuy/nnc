@@ -1,5 +1,6 @@
 
 #include <nnc/sigcert.h>
+#include <string.h>
 #include "./internal.h"
 
 #define SIGN_MAX 5
@@ -16,15 +17,19 @@ u16 nnc_sig_size(enum nnc_sigtype sig)
 
 result nnc_read_sig(rstream *rs, nnc_signature *sig)
 {
+	/* this function is a tad bit cursed due to alignment */
 	result ret;
-	u8 signum[4];
-	TRY(read_exact(rs, signum, sizeof(u32)));
+	u8 signum[4 + 12];
+	TRY(read_exact(rs, signum, sizeof(signum)));
 	if(signum[0] != 0x00 || signum[1] != 0x01 || signum[2] != 0x00 || signum[3] > SIGN_MAX)
 		return NNC_R_INVALID_SIG;
 	sig->type = signum[3];
-	TRY(read_exact(rs, sig->data, size_lut[sig->type]));
-	TRY(NNC_RS_PCALL(rs, seek_rel, pad_lut[sig->type]));
-	TRY(read_exact(rs, (u8 *) sig->issuer, 0x40));
+	nnc_u8 sigdata[0x270];
+	u16 total_sig_read_size = size_lut[sig->type] + pad_lut[sig->type] - 12;
+	TRY(read_exact(rs, sigdata, total_sig_read_size + 0x40));
+	memcpy(sig->data, &signum[4], 12);
+	memcpy(&sig->data[12], sigdata, size_lut[sig->type] - 12);
+	memcpy(sig->issuer, &sigdata[total_sig_read_size], 0x40);
 	sig->issuer[0x40] = '\0';
 	return NNC_R_OK;
 }

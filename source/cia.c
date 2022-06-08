@@ -14,7 +14,7 @@ nnc_result nnc_read_cia_header(nnc_rstream *rs, nnc_cia_header *cia)
 	nnc_u8 header[0x2020];
 	result ret;
 
-	TRY(read_exact(rs, header, sizeof(header)));
+	TRY(read_at_exact(rs, 0, header, sizeof(header)));
 	/* 0x00 */ if(LE32P(&header[0x00]) != 0x2020) return NNC_R_CORRUPT;
 	/* 0x04 */ cia->type = LE16P(&header[0x04]);
 	/* 0x06 */ cia->version = LE16P(&header[0x06]);
@@ -83,6 +83,7 @@ nnc_result nnc_cia_make_reader(nnc_cia_header *cia, nnc_rstream *rs,
 
 	return NNC_R_OK;
 free_chunks:
+	reader->chunks = NULL;
 	free(reader->chunks);
 	return ret;
 }

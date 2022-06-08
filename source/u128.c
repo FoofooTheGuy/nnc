@@ -27,7 +27,7 @@ u128 *nnc_u128_rol(u128 *a, u8 n)
 	}
 	else
 	{
-		fprintf(stderr, "EINVAL: rol: n >= 64 (n=%i)\n", n);
+		printf("EINVAL: rol: n >= 64 (n=%i)\n", n);
 		abort();
 	}
 	return a;
@@ -47,7 +47,7 @@ u128 *nnc_u128_ror(u128 *a, u8 n)
 	}
 	else
 	{
-		fprintf(stderr, "EINVAL: ror: n >= 64 (n=%i)\n", n);
+		printf("EINVAL: ror: n >= 64 (n=%i)\n", n);
 		abort();
 	}
 	return a;

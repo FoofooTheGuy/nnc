@@ -119,10 +119,10 @@ nnc_result nnc_cia_open_meta(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *
  *  \note          You must free up the used memory with \ref nnc_cia_free_reader.
  *  \note          If this function does not return NNC_R_OK you musn't call \ref nnc_cia_free_reader.
  *  \returns
- *  Anything \ref nnc_read_tmd_header can return.
- *  Anything \ref nnc_read_tmd_chunk_records can return.
- *  Anything \ref nnc_read_ticket can return.
- *  Anything \ref nnc_decrypt_tkey can return.
+ *  Anything \ref nnc_read_tmd_header can return. \n
+ *  Anything \ref nnc_read_tmd_chunk_records can return. \n
+ *  Anything \ref nnc_read_ticket can return. \n
+ *  Anything \ref nnc_decrypt_tkey can return. \n
  *  \p NNC_R_NOMEM => Failed to allocate dynamic memory.
  */
 nnc_result nnc_cia_make_reader(nnc_cia_header *cia, nnc_rstream *rs,
@@ -134,7 +134,7 @@ nnc_result nnc_cia_make_reader(nnc_cia_header *cia, nnc_rstream *rs,
  *  \param content  Output content stream.
  *  \param chunk    Optionally you can save a pointer to the used chunk record.
  *  \returns
- *  Anything \ref nnc_aes_cbc_open an return.
+ *  Anything \ref nnc_aes_cbc_open an return. \n
  *  \p NNC_R_NOT_FOUND => Content index is not present in the TMD.
  */
 nnc_result nnc_cia_open_content(nnc_cia_content_reader *reader, nnc_u16 index,

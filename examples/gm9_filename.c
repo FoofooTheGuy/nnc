@@ -85,12 +85,13 @@ int main(int argc, char *argv[])
 			nnc_u16 *name = smdh.titles[NNC_TITLE_ENGLISH].short_desc;
 #define NAME8_LEN ((int) (sizeof(smdh.titles[0]) * 4))
 			nnc_u8 name8[NAME8_LEN + 1];
-			name8[NAME8_LEN] = '\0';
-			if(nnc_utf16_to_utf8(name8, NAME8_LEN, name, sizeof(smdh.titles[0])/sizeof(nnc_u16)) >= NAME8_LEN)
+			int units = nnc_utf16_to_utf8(name8, NAME8_LEN, name, sizeof(smdh.titles[0])/sizeof(nnc_u16));
+			if(units > NAME8_LEN)
 			{
 				fprintf(stderr, "%s: failed to get title.\n", fname);
 				goto err;
 			}
+			name8[units] = '\0';
 			for(int i = 0; name8[i] != '\0'; ++i)
 			{
 				if(name8[i] == '\n' || name8[i] == '\r' || name8[i] == '/')

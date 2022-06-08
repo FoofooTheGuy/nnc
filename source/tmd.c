@@ -10,6 +10,7 @@
 result nnc_read_tmd_header(rstream *rs, nnc_tmd_header *tmd)
 {
 	result ret;
+	TRY(NNC_RS_PCALL(rs, seek_abs, 0));
 	TRY(nnc_read_sig(rs, &tmd->sig));
 	u8 buf[0x84];
 	TRY(read_exact(rs, buf, sizeof(buf)));

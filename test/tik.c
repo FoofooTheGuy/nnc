@@ -1,6 +1,7 @@
 
 #include <nnc/read-stream.h>
 #include <nnc/ticket.h>
+#include <nnc/crypto.h>
 #include <inttypes.h>
 
 void nnc_dumpmem(const nnc_u8 *b, nnc_u32 size);
@@ -19,6 +20,8 @@ int tik_main(int argc, char *argv[])
 	nnc_ticket tik;
 	if(nnc_read_ticket(NNC_RSP(&f), &tik) != NNC_R_OK)
 		die("failed to read ticket from '%s'", tik_file);
+	nnc_keyset kset;
+	nnc_keyset_default(&kset, false);
 
 	printf(
 		"== %s ==\n"
@@ -33,7 +36,13 @@ int tik_main(int argc, char *argv[])
 		"  Signer CRL Version     : %i\n"
 		"  Title Key (Encrypted)  : "
 	, tik.version, tik.cacrlversion, tik.signercrlversion);
+	nnc_u8 title_key_dec[0x10];
 	for(int i = 0; i < 0x10; ++i) printf("%02X", tik.title_key[i]);
+	puts("");
+	printf("  Title Key (Decrypted)  : ");
+	if(nnc_decrypt_tkey(&tik, &kset, title_key_dec) == NNC_R_OK)
+		for(int i = 0; i < 0x10; ++i) printf("%02X", title_key_dec[i]);
+	else printf("(failed to decrypt)");
 	puts("");
 	nnc_u8 major, minor, patch;
 	nnc_parse_version(tik.title_version, &major, &minor, &patch);

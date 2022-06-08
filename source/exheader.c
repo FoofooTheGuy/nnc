@@ -69,7 +69,7 @@ result nnc_read_exheader(nnc_rstream *rs, nnc_exheader *exh)
 {
 	u8 buf[0x400];
 	result ret;
-	TRY(read_exact(rs, buf, sizeof(buf)));
+	TRY(read_at_exact(rs, 0, buf, sizeof(buf)));
 #define SEG(out, base) \
 	(out).address = LE32P(&buf[base + 0x00]); \
 	(out).max_pages = LE32P(&buf[base + 0x04]); \

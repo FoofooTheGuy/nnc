@@ -31,7 +31,7 @@ typedef struct nnc_ticket {
  *  \param rs   Stream to read from.
  *  \param tik  Output ticket.
  *  \returns
- *  Anything \ref nnc_read_sig can return.
+ *  Anything \ref nnc_read_sig can return. \n
  *  Anything rstream read can return.
  */
 nnc_result nnc_read_ticket(nnc_rstream *rs, nnc_ticket *tik);

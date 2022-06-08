@@ -22,7 +22,7 @@ result nnc_read_ncch_header(rstream *rs, nnc_ncch_header *ncch)
 	u8 header[0x200];
 	result ret;
 
-	TRY(read_exact(rs, header, sizeof(header)));
+	TRY(read_at_exact(rs, 0, header, sizeof(header)));
 	/* 0x000 */ ncch->keyy = nnc_u128_import_be(&header[0x000]);
 	/* 0x000 */ /* signature (and keyY) */
 	/* 0x100 */ if(memcmp(&header[0x100], "NCCH", 4) != 0)

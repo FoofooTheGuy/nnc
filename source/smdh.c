@@ -11,7 +11,7 @@ result nnc_read_smdh(rstream *rs, nnc_smdh *smdh)
 
 	u8 header[0x2040];
 	result ret;
-	TRY(read_exact(rs, header, sizeof(header)));
+	TRY(read_at_exact(rs, 0, header, sizeof(header)));
 	/* 0x0000 */ if(memcmp(header, "SMDH", 4) != 0)
 	/* 0x0000 */ 	return NNC_R_CORRUPT;
 	/* 0x0004 */ smdh->version = LE16P(&header[0x04]);

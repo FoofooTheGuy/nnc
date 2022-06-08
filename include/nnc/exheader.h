@@ -184,7 +184,7 @@ typedef struct nnc_exheader {
  *  \param rs   Stream to read exheader from.
  *  \param exh  Output exheader
  *  \returns
- *  \p NNC_R_UNSUPPORTED => Exheader contains interrupts in descriptors.
+ *  \p NNC_R_UNSUPPORTED => Exheader contains interrupts in descriptors. \n
  *  \p NNC_R_CORRUPT => Invalid descriptors detected.
  */
 nnc_result nnc_read_exheader(nnc_rstream *rs, nnc_exheader *exh);
