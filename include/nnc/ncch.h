@@ -134,6 +134,9 @@ nnc_result nnc_ncch_section_exefs_header(nnc_ncch_header *ncch, nnc_rstream *rs,
  *  Anything \ref nnc_get_ncch_iv can return.\n
  *  \p NNC_R_NOT_FOUND => No extended header is present in this NCCH.
  *  \p NNC_R_CORRUPT => Extended header is not the expected size.
+ *  \warn            Hashing the full stream will not match ncch->exheader_hash
+ *                   please use \ref nnc_crypto_sha256_part with the size parameter
+ *                   of ncch->exheader_size
  */
 nnc_result nnc_ncch_section_exheader(nnc_ncch_header *ncch, nnc_rstream *rs,
 	nnc_keypair *kp, nnc_ncch_section_stream *section);

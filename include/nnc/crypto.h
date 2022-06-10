@@ -5,7 +5,6 @@
 #define inc_nnc_crypto_h
 
 #include <nnc/read-stream.h>
-#include <nnc/ticket.h>
 #include <nnc/u128.h>
 #include <nnc/base.h>
 NNC_BEGIN
@@ -19,6 +18,12 @@ NNC_BEGIN
 
 /** Buffer large enough to hold a sha256 hash. */
 typedef nnc_u8 nnc_sha256_hash[0x20];
+
+/** Buffer large enough to hold a sha1 hash. */
+typedef nnc_u8 nnc_sha1_hash[20];
+
+/** Buffer large enough to hold a sha256 or sha1 hash. */
+typedef nnc_sha256_hash nnc_sha_hash;
 
 /** Container struct to hold keys which you should initialize with \ref NNC_KEYSET_INIT. */
 typedef struct nnc_keyset {
@@ -72,14 +77,37 @@ typedef struct nnc_keypair {
 } nnc_keypair;
 
 
-/** \brief          Hash a \ref nnc_rstream partly.
- *  \param rs       Stream to hash.
- *  \param digest   Output digest.
- *  \param size     Amount of data to hash.
+/** \brief         Hash a \ref nnc_rstream partly.
+ *  \param rs      Stream to hash.
+ *  \param digest  Output digest.
+ *  \param size    Amount of data to hash.
  *  \returns
  *  \p NNC_R_TOO_SMALL => \p rs is smaller than \p size.
  */
 nnc_result nnc_crypto_sha256_part(nnc_rstream *rs, nnc_sha256_hash digest, nnc_u32 size);
+
+/** \brief         Hash a \ref nnc_rstream completely.
+ *  \param rs      Stream to hash.
+ *  \param digest  Output digest.
+ *  \returns
+ *  Anything \ref nnc_crypto_sha256_part can return.
+ */
+nnc_result nnc_crypto_sha256_stream(nnc_rstream *rs, nnc_sha256_hash digest);
+
+/** \brief         Hash a \ref nnc_rstream partly. Most formats use sha256; you probably don't need to use this.
+ *  \param rs      Stream to hash.
+ *  \param digest  Output digest.
+ *  \param size    Amount of data to hash.
+ *  \returns
+ *  \p NNC_R_TOO_SMALL => \p rs is smaller than \p size.
+ */
+nnc_result nnc_crypto_sha1_part(nnc_rstream *rs, nnc_sha1_hash digest, nnc_u32 size);
+
+/** \brief    Returns true if \p a and \b are equal.
+ *  \param a  Hash A.
+ *  \param b  Hash B.
+ */
+bool nnc_crypto_hasheq(nnc_sha256_hash a, nnc_sha256_hash b);
 
 /** \brief          Hash a buffer.
  *  \param buf      Buffer to hash.
@@ -233,6 +261,9 @@ nnc_result nnc_aes_cbc_open(nnc_aes_cbc *self, nnc_rstream *child, nnc_u8 key[0x
 nnc_result nnc_fill_keypair(nnc_keypair *output, nnc_keyset *ks, nnc_seeddb *seeddb,
 	struct nnc_ncch_header *ncch);
 
+/* forward declaration from ticket.h */
+struct nnc_ticket;
+
 /** \brief            Decrypt a title key from a ticket.
  *  \param tik        Ticket from \ref nnc_read_ticket.
  *  \param ks         Keyset from \ref nnc_keyset_default.
@@ -240,7 +271,7 @@ nnc_result nnc_fill_keypair(nnc_keypair *output, nnc_keyset *ks, nnc_seeddb *see
  *  \returns
  *  \p NNC_R_CORRUPT => Ticket keyY is invalid.
  */
-nnc_result nnc_decrypt_tkey(nnc_ticket *tik, nnc_keyset *ks, nnc_u8 decrypted[0x10]);
+nnc_result nnc_decrypt_tkey(struct nnc_ticket *tik, nnc_keyset *ks, nnc_u8 decrypted[0x10]);
 
 NNC_END
 #endif

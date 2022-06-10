@@ -34,7 +34,9 @@ int extract_exefs_main(int argc, char *argv[])
 		printf("%8s @ %08X [%08X] (", headers[i].name, headers[i].offset, headers[i].size);
 		for(nnc_u8 j = 0; j < sizeof(nnc_sha256_hash); ++j)
 			printf("%02X", headers[i].hash[j]);
-		printf(nnc_verify_file(NNC_RSP(&sv), &headers[i]) ? "  HASH OK" : "  NOT  OK");
+		nnc_sha256_hash digest;
+		nnc_crypto_sha256_stream(NNC_RSP(&sv), digest);
+		printf(nnc_crypto_hasheq(digest, headers[i].hash) ? "      OK" : "  NOT OK");
 		printf(")");
 
 		const char *fname = NULL;

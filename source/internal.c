@@ -1,6 +1,7 @@
 
-#include <nnc/base.h>
 #include <nnc/read-stream.h>
+#include <nnc/base.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include "./internal.h"
 
@@ -121,7 +122,61 @@ const char *nnc_strerror(nnc_result res)
 	case NNC_R_UNSUPPORTED: return "not supported";
 	case NNC_R_INVAL: return "invalid parameter";
 	case NNC_R_BAD_ALIGN: return "bad alignment";
+	case NNC_R_BAD_SIG: return "signature failed verification";
+	case NNC_R_CERT_NOT_FOUND: return "certificate not found";
+	case NNC_R_INVALID_CERT: return "invalid certificate type";
 	}
 	return NULL;
+}
+
+#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
+	#include <unistd.h>
+	#define UNIX_LIKE
+	#define can_read(f) access(f, R_OK) == 0
+#elif defined(_WIN32)
+	#include <io.h>
+	#define can_read(f) _access_s(f, 4) == 0
+#endif
+
+bool nnc_find_support_file(const char *name, char *output)
+{
+#define CHECK_BASE(...) do { \
+		if(snprintf(output, SUP_FILE_NAME_LEN, __VA_ARGS__) > SUP_FILE_NAME_LEN) \
+		  break; \
+		if(can_read(output)) \
+			return true; \
+	} while(0)
+	char *envptr;
+#define CHECKE(path) CHECK_BASE("%s/%s/%s", envptr, path, name)
+#define CHECK(path) CHECK_BASE("%s/%s", path, name)
+
+#ifdef UNIX_LIKE
+	if((envptr = getenv("HOME")))
+	{
+		CHECKE(".config/3ds");
+		CHECKE("3ds");
+		CHECKE(".3ds");
+	}
+	CHECK("/usr/share/3ds");
+#elif defined(_WIN32)
+	if((envptr = getenv("USERPROFILE")))
+	{
+		CHECKE("3ds");
+		CHECKE(".3ds");
+	}
+	if((envptr = getenv("APPDATA")))
+		CHECKE("3ds");
+#else
+	/* no clue where to look */
+	(void) envptr;
+	(void) output;
+	(void) name;
+#endif
+
+	/* nothing found */
+	return false;
+#undef CHECK_BASE
+#undef CHECKE
+#undef CHECK
 }
 

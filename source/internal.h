@@ -75,6 +75,9 @@ result nnc_read_exact(struct nnc_rstream *rs, u8 *data, u32 dsize);
 #define dumpmem nnc_dumpmem
 /* for debugging */
 void nnc_dumpmem(void *mem, u32 len);
+#define find_support_file nnc_find_support_file
+#define SUP_FILE_NAME_LEN (1024 + 1)
+bool nnc_find_support_file(const char *name, char *output);
 
 #endif
 

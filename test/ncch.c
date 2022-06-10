@@ -152,44 +152,90 @@ int ncch_info_main(int argc, char *argv[])
 	, get_flags(header.flags), MU_ARG(header.plain_offset), MU_ARG(header.plain_size)
 	, MU_ARG(header.logo_offset), MU_ARG(header.logo_size), MU_ARG(header.exefs_offset)
 	, MU_ARG(header.exefs_size), MU_ARG(header.romfs_offset), MU_ARG(header.romfs_size));
-	printf(" Logo Region Hash             : "); print_hash(header.logo_hash); puts("");
-	printf(" Extended Header Region Hash  : "); print_hash(header.exheader_hash); puts("");
-	printf(" ExeFS Region Hash            : "); print_hash(header.exefs_hash); puts("");
-	printf(" RomFS Region Hash            : "); print_hash(header.romfs_hash); puts("");
+	nnc_ncch_section_stream section;
+	nnc_subview sv;
 
-	nnc_ncch_section_stream romfs;
+	printf(" Logo Region Hash             : "); print_hash(header.logo_hash);
+	if(nnc_ncch_section_logo(&header, NNC_RSP(&f), &sv) == NNC_R_OK)
+	{
+		nnc_sha256_hash digest;
+		nnc_crypto_sha256_stream(NNC_RSP(&sv), digest);
+		puts(nnc_crypto_hasheq(digest, header.logo_hash) ? " (    OK)" : " (NOT OK)");
+	}
+	else puts(" (failed to read)");
+
+	printf(" Extended Header Region Hash  : "); print_hash(header.exheader_hash);
+	if(nnc_ncch_section_exheader(&header, NNC_RSP(&f), &kpair, &section) == NNC_R_OK)
+	{
+		nnc_sha256_hash digest;
+		nnc_crypto_sha256_part(NNC_RSP(&section), digest, header.exheader_size);
+		puts(nnc_crypto_hasheq(digest, header.exheader_hash) ? " (    OK)" : " (NOT OK)");
+		NNC_RS_CALL0(section, close);
+	}
+	else puts(" (failed to read)");
+
+	printf(" ExeFS Header Region Hash     : "); print_hash(header.exefs_hash);
+	if(nnc_ncch_section_exefs_header(&header, NNC_RSP(&f), &kpair, &section) == NNC_R_OK)
+	{
+		nnc_u32 hash_len = NNC_MU_TO_BYTE(header.exefs_hash_size);
+		if(NNC_RS_CALL0(section, size) < hash_len)
+			puts(" (unsupported)"); /* not sure if this ever happens */
+		else
+		{
+			nnc_sha256_hash digest;
+			nnc_crypto_sha256_part(NNC_RSP(&section), digest, hash_len);
+			puts(nnc_crypto_hasheq(digest, header.exefs_hash) ? " (    OK)" : " (NOT OK)");
+		}
+		NNC_RS_CALL0(section, close);
+	}
+
+	printf(" RomFS Region Hash            : "); print_hash(header.romfs_hash);
+	if(nnc_ncch_section_romfs(&header, NNC_RSP(&f), &kpair, &section) == NNC_R_OK)
+	{
+		nnc_u32 hash_len = NNC_MU_TO_BYTE(header.romfs_hash_size);
+		if(NNC_RS_CALL0(section, size) < hash_len)
+			puts(" (unsupported)"); /* not sure if this ever happens */
+		else
+		{
+			nnc_sha256_hash digest;
+			nnc_crypto_sha256_part(NNC_RSP(&section), digest, hash_len);
+			puts(nnc_crypto_hasheq(digest, header.romfs_hash) ? " (    OK)" : " (NOT OK)");
+		}
+		NNC_RS_CALL0(section, close);
+	}
+
 	printf(" RomFS Block0                 : ");
 	if(!(header.flags & NNC_NCCH_NO_CRYPTO) && !crypt)
 		puts(NO_CRYPT);
-	else if(nnc_ncch_section_romfs(&header, NNC_RSP(&f), &kpair, &romfs) == NNC_R_OK)
+	else if(nnc_ncch_section_romfs(&header, NNC_RSP(&f), &kpair, &section) == NNC_R_OK)
 	{
 		nnc_u8 block0[0x10];
 		nnc_u32 total;
-		if(NNC_RS_CALL(romfs, read, block0, 0x10, &total) == NNC_R_OK && total == 0x10)
+		if(NNC_RS_CALL(section, read, block0, 0x10, &total) == NNC_R_OK && total == 0x10)
 			nnc_dumpmem(block0, 0x10);
 		else
 			puts("(failed to read)");
-		NNC_RS_CALL0(romfs, close);
+		NNC_RS_CALL0(section, close);
 	}
 	else
 		puts("(failed to read)");
-	nnc_ncch_section_stream exefs;
+
 	printf(" ExeFS Header Block0          : ");
 	if(!(header.flags & NNC_NCCH_NO_CRYPTO) && !crypt)
 		puts(NO_CRYPT "\n   /icon (SMDH) Block0        : " NO_CRYPT);
-	else if(nnc_ncch_section_exefs_header(&header, NNC_RSP(&f), &kpair, &exefs) == NNC_R_OK)
+	else if(nnc_ncch_section_exefs_header(&header, NNC_RSP(&f), &kpair, &section) == NNC_R_OK)
 	{
 		nnc_u8 block0[0x10];
 		nnc_u32 total;
-		if(NNC_RS_CALL(exefs, read, block0, 0x10, &total) == NNC_R_OK && total == 0x10)
+		if(NNC_RS_CALL(section, read, block0, 0x10, &total) == NNC_R_OK && total == 0x10)
 			nnc_dumpmem(block0, 0x10);
 		else
 			puts("(failed to read)");
 
 
-		NNC_RS_CALL(exefs, seek_abs, 0);
+		NNC_RS_CALL(section, seek_abs, 0);
 		nnc_exefs_file_header headers[NNC_EXEFS_MAX_FILES];
-		nnc_read_exefs_header(NNC_RSP(&exefs), headers, NULL);
+		nnc_read_exefs_header(NNC_RSP(&section), headers, NULL);
 		nnc_i8 index = nnc_find_exefs_file_index("icon", headers);
 		printf("   /icon (SMDH) Block0        : ");
 		if(index != -1)
@@ -207,19 +253,18 @@ int ncch_info_main(int argc, char *argv[])
 		else
 			puts("(not present)");
 
-		NNC_RS_CALL0(exefs, close);
+		NNC_RS_CALL0(section, close);
 	}
 	else
 		puts("(failed to read)");
 
-	nnc_ncch_section_stream exheader;
 	printf(" Extended Header Block0       : ");
 	if(!(header.flags & NNC_NCCH_NO_CRYPTO) && !crypt)
 		puts(NO_CRYPT);
-	else if(nnc_ncch_section_exheader(&header, NNC_RSP(&f), &kpair, &exheader) == NNC_R_OK)
+	else if(nnc_ncch_section_exheader(&header, NNC_RSP(&f), &kpair, &section) == NNC_R_OK)
 	{
 		nnc_u8 block0[0x10]; nnc_u32 total;
-		if(NNC_RS_CALL(exheader, read, block0, 0x10, &total) == NNC_R_OK && total == 0x10)
+		if(NNC_RS_CALL(section, read, block0, 0x10, &total) == NNC_R_OK && total == 0x10)
 			nnc_dumpmem(block0, 0x10);
 		else
 			puts("(failed to read)");
@@ -252,7 +297,6 @@ int ncch_info_main(int argc, char *argv[])
 	}
 	else
 		puts("(not available)");
-
 
 	nnc_free_seeddb(&seeddb);
 	NNC_RS_CALL0(f, close);

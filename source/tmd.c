@@ -28,6 +28,8 @@ result nnc_read_tmd_header(rstream *rs, nnc_tmd_header *tmd)
 	/* 0x58 */ tmd->access_rights = BE32P(&buf[0x58]);
 	/* 0x5C */ tmd->title_ver = BE16P(&buf[0x5C]);
 	/* 0x5E */ tmd->content_count = BE16P(&buf[0x5E]);
+	/* 0x60 */ tmd->boot_content = BE16P(&buf[0x60]);
+	/* 0x62 */ /* padding */
 	/* 0x64 */ memcpy(tmd->hash, &buf[0x64], sizeof(nnc_sha256_hash));
 	return NNC_R_OK;
 }
@@ -136,5 +138,14 @@ result nnc_read_tmd_chunk_records(rstream *rs, nnc_tmd_header *tmd, nnc_chunk_re
 		/* 0x10 */ memcpy(rec->hash, &blk[0x10], sizeof(nnc_sha256_hash));
 	}
 	return NNC_R_OK;
+}
+
+result nnc_tmd_signature_hash(nnc_rstream *rs, nnc_tmd_header *tmd, nnc_sha_hash digest)
+{
+	u32 pos = nnc_sig_size(tmd->sig.type);
+	if(!pos) return NNC_R_INVALID_SIG;
+	NNC_RS_PCALL(rs, seek_abs, pos);
+	/* 0xC4 = sizeof(tmd_header) */
+	return nnc_sighash(rs, tmd->sig.type, digest, 0xC4);
 }
 

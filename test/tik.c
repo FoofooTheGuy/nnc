@@ -10,7 +10,7 @@ void die(const char *fmt, ...);
 
 int tik_main(int argc, char *argv[])
 {
-	if(argc != 2) die("usage: %s <tik-file>", argv[0]);
+	if(argc != 2) die("usage: %s tik-info <tik-file>", argv[0]);
 	const char *tik_file = argv[1];
 
 	nnc_file f;
@@ -60,6 +60,15 @@ int tik_main(int argc, char *argv[])
 	, major, minor, patch, tik.title_version
 	, tik.license_type, tik.common_keyy, tik.eshop_account_id, tik.audit);
 	nnc_dumpmem(tik.limits, 0x40);
+
+	printf("  Certificate Validation : ");
+	nnc_certchain chain;
+	nnc_scan_certchains(&chain);
+	nnc_sha_hash digest;
+	nnc_ticket_signature_hash(NNC_RSP(&f), &tik, digest);
+	puts(nnc_strerror(nnc_verify_signature(&chain, &tik.sig, digest)));
+	nnc_free_certchain(&chain);
+
 
 	NNC_RS_CALL0(f, close);
 	return 0;

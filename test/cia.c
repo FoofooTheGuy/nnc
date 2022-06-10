@@ -14,18 +14,28 @@
 void die(const char *fmt, ...);
 
 
-static void extract(nnc_rstream *rs, const char *to, const char *type)
+static void extract(nnc_rstream *rs, const char *to, const char *type, nnc_sha256_hash hash)
 {
-	printf("Saving %s to %s ...\n", type, to);
+	printf("Saving %s to %s... ", type, to);
 	nnc_u32 len = NNC_RS_PCALL0(rs, size), rlen;
 	nnc_u8 *buf = malloc(len);
 	if(NNC_RS_PCALL(rs, read, buf, len, &rlen) != NNC_R_OK || len != rlen)
 		die("read failure for %s", to);
+	if(hash)
+	{
+		nnc_sha256_hash digest;
+		nnc_crypto_sha256(buf, digest, len);
+		if(nnc_crypto_hasheq(digest, hash))
+			printf("hash match... ");
+		else
+			printf("hash mismatch... ");
+	}
 	FILE *out = fopen(to, "w");
 	if(fwrite(buf, len, 1, out) != 1)
 		die("write failure for %s", to);
 	fclose(out);
 	free(buf);
+	puts("done");
 }
 
 int cia_main(int argc, char *argv[])
@@ -73,22 +83,22 @@ int cia_main(int argc, char *argv[])
 
 	char pathbuf[1024];
 	nnc_subview sv;
- 
+
 	snprintf(pathbuf, sizeof(pathbuf), "%s/certchain", output);
 	nnc_cia_open_ticket(&header, NNC_RSP(&f), &sv);
-	extract(NNC_RSP(&sv), pathbuf, "certificate chain");
+	extract(NNC_RSP(&sv), pathbuf, "certificate chain", NULL);
 
 	snprintf(pathbuf, sizeof(pathbuf), "%s/tik", output);
 	nnc_cia_open_ticket(&header, NNC_RSP(&f), &sv);
-	extract(NNC_RSP(&sv), pathbuf, "ticket");
+	extract(NNC_RSP(&sv), pathbuf, "ticket", NULL);
 
 	snprintf(pathbuf, sizeof(pathbuf), "%s/tmd", output);
 	nnc_cia_open_tmd(&header, NNC_RSP(&f), &sv);
-	extract(NNC_RSP(&sv), pathbuf, "TMD");
+	extract(NNC_RSP(&sv), pathbuf, "TMD", NULL);
 
 	snprintf(pathbuf, sizeof(pathbuf), "%s/meta", output);
 	if(nnc_cia_open_meta(&header, NNC_RSP(&f), &sv) == NNC_R_OK)
-		extract(NNC_RSP(&sv), pathbuf, "CIA meta section");
+		extract(NNC_RSP(&sv), pathbuf, "CIA meta section", NULL);
 	else fprintf(stderr, "WARN: no meta in CIA.\n");
 
 	nnc_cia_content_reader reader;
@@ -110,7 +120,7 @@ int cia_main(int argc, char *argv[])
 		snprintf(pathbuf, sizeof(pathbuf), "%s/%08" PRIX32, output, chunk->id);
 		static char type[] = "NCCH content index XXXX";
 		snprintf(type + 13, 5, "%04X", chunk->index);
-		extract(NNC_RSP(&ncch), pathbuf, type);
+		extract(NNC_RSP(&ncch), pathbuf, type, chunk->hash);
 
 		/* this section is here to test CBC seeking */
 		NNC_RS_CALL(ncch, seek_abs, 0);
@@ -123,8 +133,7 @@ int cia_main(int argc, char *argv[])
 		{
 			nnc_romfs_header romfs;
 			if(nnc_read_romfs_header(NNC_RSP(&rrs), &romfs) != NNC_R_OK)
-				printf("failed reading romfs\n");
-			else printf("read romfs correctly\n");
+				printf("WARN: Failed reading romfs header.\n");
 		}
 
 		NNC_RS_CALL0(ncch, close);

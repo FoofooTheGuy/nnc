@@ -55,6 +55,9 @@ enum nnc_result_codes {
 	NNC_R_UNSUPPORTED,     ///< Unsupported.
 	NNC_R_INVAL,           ///< Invalid parameter(s).
 	NNC_R_BAD_ALIGN,       ///< Bad alignment.
+	NNC_R_BAD_SIG,         ///< Signature failed verification.
+	NNC_R_CERT_NOT_FOUND,  ///< Certificate not found.
+	NNC_R_INVALID_CERT,    ///< Invalid certificate type.
 };
 
 enum nnc_tid_category {

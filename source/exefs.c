@@ -58,10 +58,3 @@ void nnc_exefs_subview(nnc_rstream *rs, nnc_subview *sv, nnc_exefs_file_header *
 	nnc_subview_open(sv, rs, NNC_EXEFS_HEADER_SIZE + header->offset, header->size);
 }
 
-bool nnc_verify_file(nnc_rstream *rs, nnc_exefs_file_header *header)
-{
-	nnc_sha256_hash hash;
-	TRYB(nnc_crypto_sha256_part(rs, hash, header->size));
-	return memcmp(hash, header->hash, sizeof(header->hash)) == 0;
-}
-

@@ -128,6 +128,14 @@ int tmd_info_main(int argc, char *argv[])
 		puts("");
 	}
 
+	printf(" Certificate Validation  : ");
+	nnc_certchain chain;
+	nnc_scan_certchains(&chain);
+	nnc_sha_hash digest;
+	nnc_tmd_signature_hash(NNC_RSP(&f), &tmd, digest);
+	puts(nnc_strerror(nnc_verify_signature(&chain, &tmd.sig, digest)));
+	nnc_free_certchain(&chain);
+
 	NNC_RS_CALL0(f, close);
 	return 0;
 }

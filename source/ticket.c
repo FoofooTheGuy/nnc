@@ -33,3 +33,12 @@ nnc_result nnc_read_ticket(nnc_rstream *rs, nnc_ticket *tik)
 	return NNC_R_OK;
 }
 
+result nnc_ticket_signature_hash(nnc_rstream *rs, nnc_ticket *tik, nnc_sha_hash digest)
+{
+	u32 pos = nnc_sig_size(tik->sig.type);
+	if(!pos) return NNC_R_INVALID_SIG;
+	NNC_RS_PCALL(rs, seek_abs, pos);
+	/* 0xC4 = sizeof(tmd_header) */
+	return nnc_sighash(rs, tik->sig.type, digest, NNC_RS_PCALL0(rs, size) - pos);
+}
+

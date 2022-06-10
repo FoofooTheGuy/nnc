@@ -49,12 +49,6 @@ nnc_i8 nnc_find_exefs_file_index(const char *name, nnc_exefs_file_header *header
  */
 void nnc_exefs_subview(nnc_rstream *rs, nnc_subview *sv, nnc_exefs_file_header *header);
 
-/** \brief          Verify if an exefs file is good.
- *  \param rs       Stream to read file from (see \ref nnc_exefs_subview).
- *  \param header   Header to verify.
- */
-bool nnc_verify_file(nnc_rstream *rs, nnc_exefs_file_header *header);
-
 NNC_END
 #endif
 

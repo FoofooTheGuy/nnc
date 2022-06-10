@@ -1,8 +1,10 @@
 
 #include <mbedtls/version.h>
 #include <mbedtls/sha256.h>
+#include <mbedtls/sha1.h>
 #include <mbedtls/aes.h>
 #include <nnc/crypto.h>
+#include <nnc/ticket.h>
 #include <nnc/ncch.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,8 +19,10 @@
 	#define mbedtls_sha256_starts mbedtls_sha256_starts_ret
 	#define mbedtls_sha256_update mbedtls_sha256_update_ret
 	#define mbedtls_sha256_finish mbedtls_sha256_finish_ret
+	#define mbedtls_sha1_starts mbedtls_sha1_starts_ret
+	#define mbedtls_sha1_update mbedtls_sha1_update_ret
+	#define mbedtls_sha1_finish mbedtls_sha1_finish_ret
 #endif
-
 
 result nnc_crypto_sha256_part(nnc_rstream *rs, nnc_sha256_hash digest, u32 size)
 {
@@ -44,6 +48,41 @@ out:
 	return ret;
 }
 
+result nnc_crypto_sha1_part(nnc_rstream *rs, nnc_sha1_hash digest, u32 size)
+{
+	mbedtls_sha1_context ctx;
+	mbedtls_sha1_init(&ctx);
+	mbedtls_sha1_starts(&ctx);
+	u8 block[BLOCK_SZ];
+	u32 read_left = size, next_read = MIN(size, BLOCK_SZ), read_ret;
+	result ret;
+	while(read_left != 0)
+	{
+		ret = NNC_RS_PCALL(rs, read, block, next_read, &read_ret);
+		if(ret != NNC_R_OK) goto out;
+		if(read_ret != next_read) { ret = NNC_R_TOO_SMALL; goto out; }
+		mbedtls_sha1_update(&ctx, block, read_ret);
+		read_left -= next_read;
+		next_read = MIN(read_left, BLOCK_SZ);
+	}
+	mbedtls_sha1_finish(&ctx, digest);
+	ret = NNC_R_OK;
+out:
+	mbedtls_sha1_free(&ctx);
+	return ret;
+}
+
+
+result nnc_crypto_sha256_stream(nnc_rstream *rs, nnc_sha256_hash digest)
+{
+	return nnc_crypto_sha256_part(rs, digest, NNC_RS_PCALL0(rs, size));
+}
+
+bool nnc_crypto_hasheq(nnc_sha256_hash a, nnc_sha256_hash b)
+{
+	return memcmp(a, b, sizeof(nnc_sha256_hash)) == 0;
+}
+
 result nnc_crypto_sha256(const u8 *buf, nnc_sha256_hash digest, u32 size)
 {
 	mbedtls_sha256_context ctx;
@@ -53,61 +92,6 @@ result nnc_crypto_sha256(const u8 *buf, nnc_sha256_hash digest, u32 size)
 	mbedtls_sha256_finish(&ctx, digest);
 	mbedtls_sha256_free(&ctx);
 	return NNC_R_OK;
-}
-
-#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
-	#include <unistd.h>
-	#define UNIX_LIKE
-	#define can_read(f) access(f, R_OK) == 0
-#elif defined(_WIN32)
-	#include <io.h>
-	#define can_read(f) _access_s(f, 4) == 0
-#endif
-
-static bool find_support_file(const char *name, char *output)
-{
-	char pathbuf[1024 + 1];
-#define CHECK_BASE(...) do { \
-		snprintf(pathbuf, 1024, __VA_ARGS__); \
-		if(can_read(pathbuf)) \
-		{ \
-			strcpy(output, pathbuf); \
-			return true; \
-		}\
-	} while(0)
-	char *envptr;
-#define CHECKE(path) CHECK_BASE("%s/%s/%s", envptr, path, name)
-#define CHECK(path) CHECK_BASE("%s/%s", path, name)
-
-#ifdef UNIX_LIKE
-	if((envptr = getenv("HOME")))
-	{
-		CHECKE(".config/3ds");
-		CHECKE("3ds");
-		CHECKE(".3ds");
-	}
-	CHECK("/usr/share/3ds");
-#elif defined(_WIN32)
-	if((envptr = getenv("USERPROFILE")))
-	{
-		CHECKE("3ds");
-		CHECKE(".3ds");
-	}
-	if((envptr = getenv("APPDATA")))
-		CHECKE("3ds");
-#else
-	/* no clue where to look */
-	(void) pathbuf;
-	(void) envptr;
-	(void) output;
-	(void) name;
-#endif
-
-	/* nothing found */
-	return false;
-#undef CHECK_BASE
-#undef CHECKE
-#undef CHECK
 }
 
 nnc_result nnc_seeds_seeddb(nnc_rstream *rs, nnc_seeddb *seeddb)

@@ -6,6 +6,7 @@
 #define inc_nnc_ticket_h
 
 #include <nnc/sigcert.h>
+#include <nnc/crypto.h>
 #include <nnc/base.h>
 NNC_BEGIN
 
@@ -35,6 +36,16 @@ typedef struct nnc_ticket {
  *  Anything rstream read can return.
  */
 nnc_result nnc_read_ticket(nnc_rstream *rs, nnc_ticket *tik);
+
+/** \brief         Hashes part of the ticket required for \ref nnc_verify_signature.
+ *  \param rs      Stream to hash from.
+ *  \param ticket  Ticket data.
+ *  \param digest  Output hash.
+ *  \returns
+ *  Anything \ref nnc_signature_hash can return.\n
+ *  \p NNC_R_INVALID_SIG => Invalid signature.
+ */
+nnc_result nnc_ticket_signature_hash(nnc_rstream *rs, nnc_ticket *tik, nnc_sha_hash digest);
 
 NNC_END
 #endif

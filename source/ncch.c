@@ -6,7 +6,8 @@
 #include "./internal.h"
 
 #define EXHEADER_OFFSET NNC_MEDIA_UNIT
-#define EXHEADER_SIZE 0x800
+#define EXHEADER_FULL_SIZE 0x800
+#define EXHEADER_SIZE 0x400
 
 
 static u32 u32pow(u32 x, u8 y)
@@ -107,13 +108,13 @@ nnc_result nnc_ncch_section_exheader(nnc_ncch_header *ncch, nnc_rstream *rs,
 {
 	if(ncch->exheader_size == 0) return NNC_R_NOT_FOUND;
 	/* for some reason the header says it's 0x400 bytes whilest it really is 0x800 bytes */
-	if(ncch->exheader_size != 0x400) return NNC_R_CORRUPT;
+	if(ncch->exheader_size != EXHEADER_SIZE) return NNC_R_CORRUPT;
 	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
 		return SUBVIEW_R(dec, EXHEADER_OFFSET, EXHEADER_SIZE), NNC_R_OK;
 
 	u8 iv[0x10]; result ret;
 	TRY(nnc_get_ncch_iv(ncch, NNC_SECTION_EXHEADER, iv));
-	SUBVIEW_R(enc, EXHEADER_OFFSET, EXHEADER_SIZE);
+	SUBVIEW_R(enc, EXHEADER_OFFSET, EXHEADER_FULL_SIZE);
 	return nnc_aes_ctr_open(&section->u.enc.crypt, NNC_RSP(&section->u.enc.sv),
 		&kp->primary, iv);
 }
