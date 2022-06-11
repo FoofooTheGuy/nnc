@@ -108,7 +108,7 @@ static bool setup_pk(nnc_certchain *chain, nnc_signature *sig, mbedtls_pk_contex
 	return false;
 }
 
-result nnc_verify_signature(nnc_certchain *chain, nnc_signature *sig, u8 *hash)
+result nnc_verify_signature(nnc_certchain *chain, nnc_signature *sig, nnc_sha_hash hash)
 {
 	const mbedtls_pk_info_t *pkinfo;
 	switch(sig->type)

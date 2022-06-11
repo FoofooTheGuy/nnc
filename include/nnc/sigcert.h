@@ -88,12 +88,12 @@ const char *nnc_sigstr(enum nnc_sigtype sig);
  *  \p NNC_R_CERT_NOT_FOUND => Certificate not found in \p chain.
  *  \p NNC_R_INVALID_SIG => Invalid signature.
  */
-nnc_result nnc_verify_signature(nnc_certchain *chain, nnc_signature *sig, nnc_u8 *hash);
+nnc_result nnc_verify_signature(nnc_certchain *chain, nnc_signature *sig, nnc_sha_hash hash);
 
 /** \brief         Selects either sha1 or sha256 based on \p sig.
  *  \param rs      Stream to read data from.
  *  \param sig     Signature type.
- *  \param digest  Of type \ref nnc_sha_hash, not annotated due to circle dependencies.
+ *  \param digest  Output digest.
  *  \param size    Amount of data to hash.
  *  \return
  *  Anything \ref nnc_crypto_sha256_hash can return.\n

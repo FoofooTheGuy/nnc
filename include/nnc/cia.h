@@ -134,7 +134,7 @@ nnc_result nnc_cia_make_reader(nnc_cia_header *cia, nnc_rstream *rs,
  *  \param content  Output content stream.
  *  \param chunk    Optionally you can save a pointer to the used chunk record.
  *  \returns
- *  Anything \ref nnc_aes_cbc_open an return. \n
+ *  Anything \ref nnc_aes_cbc_open an return.\n
  *  \p NNC_R_NOT_FOUND => Content index is not present in the TMD.
  */
 nnc_result nnc_cia_open_content(nnc_cia_content_reader *reader, nnc_u16 index,

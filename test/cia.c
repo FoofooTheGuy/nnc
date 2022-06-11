@@ -16,8 +16,8 @@ void die(const char *fmt, ...);
 
 static void extract(nnc_rstream *rs, const char *to, const char *type, nnc_sha256_hash hash)
 {
-	printf("Saving %s to %s... ", type, to);
 	nnc_u32 len = NNC_RS_PCALL0(rs, size), rlen;
+	printf("Saving %s (0x%X) to %s... ", type, len, to);
 	nnc_u8 *buf = malloc(len);
 	if(NNC_RS_PCALL(rs, read, buf, len, &rlen) != NNC_R_OK || len != rlen)
 		die("read failure for %s", to);
@@ -85,7 +85,7 @@ int cia_main(int argc, char *argv[])
 	nnc_subview sv;
 
 	snprintf(pathbuf, sizeof(pathbuf), "%s/certchain", output);
-	nnc_cia_open_ticket(&header, NNC_RSP(&f), &sv);
+	nnc_cia_open_certchain(&header, NNC_RSP(&f), &sv);
 	extract(NNC_RSP(&sv), pathbuf, "certificate chain", NULL);
 
 	snprintf(pathbuf, sizeof(pathbuf), "%s/tik", output);

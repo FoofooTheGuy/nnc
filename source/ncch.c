@@ -1,5 +1,4 @@
 
-#include <mbedtls/aes.h>
 #include <nnc/ncch.h>
 #include <string.h>
 #include <stdlib.h>

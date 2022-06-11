@@ -72,7 +72,7 @@ result nnc_verify_read_tmd_info_records(rstream *rs, nnc_tmd_header *tmd,
 	u8 data[CINFO_SIZE];
 	nnc_sha256_hash digest;
 	TRY(read_at_exact(rs, pos, data, CINFO_SIZE));
-	TRY(nnc_crypto_sha256(digest, data, CINFO_SIZE));
+	TRY(nnc_crypto_sha256(data, digest, CINFO_SIZE));
 	if(memcmp(digest, tmd->hash, sizeof(digest)) != 0)
 		return NNC_R_CORRUPT;
 	return parse_info_records(data, records);
