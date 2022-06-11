@@ -67,10 +67,12 @@ int main(int argc, char *argv[])
 		if((res = nnc_cia_open_tmd(&cia, rs, &sv)) != NNC_R_OK) goto err;
 		if((res = nnc_read_tmd_header(NNC_RSP(&sv), &tmd)) != NNC_R_OK) goto err;
 		if((res = nnc_tmd_signature_hash(NNC_RSP(&sv), &tmd, digest)) != NNC_R_OK) goto err;
-		if(nnc_verify_signature(&chain, &tmd.sig, digest) == NNC_R_OK)
-			if(nnc_verify_read_tmd_info_records(NNC_RSP(&sv), &tmd, info_records) == NNC_R_OK)
-				if(nnc_verify_tmd_chunk_records(NNC_RSP(&sv), &tmd, info_records))
-					tmd_legit = true;
+		if(nnc_verify_signature(&chain, &tmd.sig, digest) == NNC_R_OK) tmd_legit = true;
+		if(nnc_verify_read_tmd_info_records(NNC_RSP(&sv), &tmd, info_records) != NNC_R_OK || !nnc_verify_tmd_chunk_records(NNC_RSP(&sv), &tmd, info_records))
+		{
+			res = NNC_R_CORRUPT;
+			goto err;
+		}
 		if((res = nnc_cia_open_ticket(&cia, rs, &sv)) != NNC_R_OK) goto err;
 		if((res = nnc_read_ticket(NNC_RSP(&sv), &tik)) != NNC_R_OK) goto err;
 		if((res = nnc_ticket_signature_hash(NNC_RSP(&sv), &tik, digest)) != NNC_R_OK) goto err;
