@@ -58,6 +58,9 @@ enum nnc_result_codes {
 	NNC_R_BAD_SIG,         ///< Signature failed verification.
 	NNC_R_CERT_NOT_FOUND,  ///< Certificate not found.
 	NNC_R_INVALID_CERT,    ///< Invalid certificate type.
+	NNC_R_FAIL_WRITE,      ///< Failed to write.
+	NNC_R_NOT_OPEN,        ///< File not open.
+	NNC_R_OPEN,            ///< File open.
 };
 
 enum nnc_tid_category {

@@ -1,9 +1,17 @@
 
+#include <mbedtls/version.h>
 #include <nnc/sigcert.h>
 #include <mbedtls/pk.h>
 #include <string.h>
 #include <stdlib.h>
 #include "./internal.h"
+
+/* In MbedTLS version 3 struct members are now accessed with MBEDTLS_PRIVATE */
+#if MBEDTLS_VERSION_MAJOR == 3
+	#define ACCESS_PRIV(name) MBEDTLS_PRIVATE(name)
+#else
+	#define ACCESS_PRIV(name) name
+#endif
 
 #define SIGN_MAX 5
 #define CERT_MAX 2
@@ -43,6 +51,22 @@ result nnc_read_sig(rstream *rs, nnc_signature *sig)
 	return NNC_R_OK;
 }
 
+nnc_result nnc_write_sig(nnc_signature *sig, nnc_wstream *ws)
+{
+	if(sig->type > SIGN_MAX) return NNC_R_INVALID_SIG;
+	u8 data[0x240 + 0x40];
+	data[0] = 0x00;
+	data[1] = 0x01;
+	data[2] = 0x00;
+	data[3] = sig->type;
+	u16 data_size = size_lut[sig->type];
+	u16 pad_size = pad_lut[sig->type];
+	memcpy(&data[4], sig->data, data_size);
+	memset(&data[4 + data_size], 0, pad_size);
+	memcpy(&data[4 + data_size + pad_size], sig->issuer, 0x40);
+	return NNC_WS_PCALL(ws, write, data, 4 + data_size + pad_size + 0x40);
+}
+
 const char *nnc_sigstr(enum nnc_sigtype sig)
 {
 	switch(sig)
@@ -65,9 +89,9 @@ const char *nnc_sigstr(enum nnc_sigtype sig)
 
 static void import_rsa(mbedtls_rsa_context *ctx, u8 *mod, u16 mod_size, u8 *exp)
 {
-	mbedtls_mpi_read_binary(&ctx->N, mod, mod_size);
-	mbedtls_mpi_read_binary(&ctx->E, exp, 0x4);
-	ctx->len = mod_size;
+	mbedtls_mpi_read_binary(&ctx->ACCESS_PRIV(N), mod, mod_size);
+	mbedtls_mpi_read_binary(&ctx->ACCESS_PRIV(E), exp, 0x4);
+	ctx->ACCESS_PRIV(len) = mod_size;
 }
 
 static bool setup_pk(nnc_certchain *chain, nnc_signature *sig, mbedtls_pk_context *ctx)
@@ -145,12 +169,12 @@ result nnc_verify_signature(nnc_certchain *chain, nnc_signature *sig, nnc_sha_ha
 	case NNC_SIG_RSA_4096_SHA1:
 	case NNC_SIG_RSA_2048_SHA1:
 	case NNC_SIG_ECDSA_SHA1:
-		ret = mbedtls_pk_verify(&ctx, MBEDTLS_MD_SHA1, hash, 0, sig->data, nnc_sig_dsize(sig->type)) == 0;
+		ret = mbedtls_pk_verify(&ctx, MBEDTLS_MD_SHA1, hash, sizeof(nnc_sha1_hash), sig->data, nnc_sig_dsize(sig->type)) == 0;
 		break;
 	case NNC_SIG_RSA_4096_SHA256:
 	case NNC_SIG_RSA_2048_SHA256:
 	case NNC_SIG_ECDSA_SHA256:
-		ret = mbedtls_pk_verify(&ctx, MBEDTLS_MD_SHA256, hash, 0, sig->data, nnc_sig_dsize(sig->type)) == 0;
+		ret = mbedtls_pk_verify(&ctx, MBEDTLS_MD_SHA256, hash, sizeof(nnc_sha256_hash), sig->data, nnc_sig_dsize(sig->type)) == 0;
 		break;
 	default:
 		ret = false;

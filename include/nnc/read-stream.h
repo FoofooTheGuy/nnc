@@ -1,8 +1,8 @@
 /** \file  read-stream.h
  *  \brief Definitions for nnc_rstream.
  */
-#ifndef inc_nnc_read_stream_h
-#define inc_nnc_read_stream_h
+#ifndef inc_nnc_stream_h
+#define inc_nnc_stream_h
 
 #include <nnc/base.h>
 #include <stdio.h>

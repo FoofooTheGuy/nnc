@@ -108,9 +108,9 @@ nnc_result nnc_read_tmd_chunk_records(nnc_rstream *rs, nnc_tmd_header *tmd, nnc_
  *  \param tmd     TMD header.
  *  \param digest  Output hash.
  *  \returns
- *  Anything \ref nnc_signature_hash can return.\n
+ *  Anything \ref nnc_sighash can return.\n
  *  \p NNC_R_INVALID_SIG => Invalid signature.
- *  \warn          Just verifying this hash doesn't mean the TMD is free from tampering.
+ *  \warning       Just verifying this hash doesn't mean the TMD is free from tampering.
  *                 You must verify the info records & chunks records.
  */
 nnc_result nnc_tmd_signature_hash(nnc_rstream *rs, nnc_tmd_header *tmd, nnc_sha_hash digest);

@@ -27,13 +27,13 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	nnc_keyset kset = NNC_KEYSET_INIT;
 	nnc_seeddb seeddb;
-	nnc_keyset kset;
 	nnc_result res;
 	int ret = 0;
 
 	if((res = nnc_scan_seeddb(&seeddb)) != NNC_R_OK)
-		fprintf(stderr, "Failed to load seeddb: %s. Titles with new crypto will not work.", nnc_strerror(res));
+		fprintf(stderr, "Failed to load seeddb: %s. Titles with new crypto will not work.\n", nnc_strerror(res));
 	nnc_keyset_default(&kset, false);
 
 	for(int i = 1; i < argc; ++i)
@@ -91,6 +91,7 @@ int main(int argc, char *argv[])
 				NNC_RS_CALL0(content, close);
 				goto err;
 			}
+			NNC_RS_CALL0(content, close);
 			if(!nnc_crypto_hasheq(digest, chunk->hash))
 			{
 				res = NNC_R_CORRUPT;

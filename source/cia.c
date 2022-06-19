@@ -109,6 +109,8 @@ nnc_result nnc_cia_open_content(nnc_cia_content_reader *reader, nnc_u16 index,
 	nnc_u32 offset = HDR_AL + CALIGN(reader->cia->cert_chain_size) + CALIGN(reader->cia->ticket_size) + CALIGN(reader->cia->tmd_size);
 	for(i = 0; i < reader->content_count; ++i)
 	{
+		if(!NNC_CINDEX_HAS(reader->cia->content_index, reader->chunks[i].index))
+			continue; /* why is this even a thing ninty */
 		if(reader->chunks[i].index == index) break;
 		offset += CALIGN(reader->chunks[i].size);
 	}

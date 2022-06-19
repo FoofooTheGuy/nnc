@@ -24,8 +24,8 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	nnc_keyset kset = NNC_KEYSET_INIT;
 	nnc_seeddb seeddb;
-	nnc_keyset kset;
 	nnc_result res;
 	int ret = 0;
 

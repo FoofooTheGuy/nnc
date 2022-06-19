@@ -7,6 +7,19 @@
 void nnc_dumpmem(const nnc_u8 *b, nnc_u32 size);
 void die(const char *fmt, ...);
 
+const char *license_type(nnc_u8 lic)
+{
+	switch(lic)
+	{
+	case NNC_TICKET_LIC_PERMANENT: return "permanent";
+	case NNC_TICKET_LIC_DEMO: return "demo";
+	case NNC_TICKET_LIC_TRIAL: return "trial";
+	case NNC_TICKET_LIC_RENTAL: return "rental";
+	case NNC_TICKET_LIC_SUBSCRIPTION: return "subscription";
+	case NNC_TICKET_LIC_SERVICE: return "service";
+	}
+	return "unknown";
+}
 
 int tik_main(int argc, char *argv[])
 {
@@ -51,14 +64,14 @@ int tik_main(int argc, char *argv[])
 		"  Console ID             : %08" PRIX32 "\n"
 		"  Title ID               : %016" PRIX64 "\n"
 		"  Title Version          : %i.%i.%i (v%i)\n"
-		"  License Type           : %i\n"
+		"  License Type           : %s\n"
 		"  Common KeyY            : %i\n"
 		"  eShop Account ID       : %08" PRIX32 "\n"
 		"  Audit                  : %i\n"
 		"  Limits                 :\n"
 	, tik.ticket_id, tik.console_id, tik.title_id
 	, major, minor, patch, tik.title_version
-	, tik.license_type, tik.common_keyy, tik.eshop_account_id, tik.audit);
+	, license_type(tik.license_type), tik.common_keyy, tik.eshop_account_id, tik.audit);
 	nnc_dumpmem(tik.limits, 0x40);
 
 	printf("  Certificate Validation : ");

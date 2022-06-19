@@ -5,10 +5,21 @@
 #ifndef inc_nnc_ticket_h
 #define inc_nnc_ticket_h
 
+#include <nnc/write-stream.h>
+#include <nnc/read-stream.h>
 #include <nnc/sigcert.h>
 #include <nnc/crypto.h>
 #include <nnc/base.h>
 NNC_BEGIN
+
+enum nnc_ticket_license {
+	NNC_TICKET_LIC_PERMANENT    = 0, ///< Permanent license, this is the usual type.
+	NNC_TICKET_LIC_DEMO         = 1, ///< Demo license.
+	NNC_TICKET_LIC_TRIAL        = 2, ///< Trial license.
+	NNC_TICKET_LIC_RENTAL       = 3, ///< Rental license.
+	NNC_TICKET_LIC_SUBSCRIPTION = 4, ///< Subscription license.
+	NNC_TICKET_LIC_SERVICE      = 5, ///< Service license.
+};
 
 typedef struct nnc_ticket {
 	nnc_signature sig;        ///< Signature.
@@ -21,7 +32,7 @@ typedef struct nnc_ticket {
 	nnc_u32 console_id;       ///< Console ID.
 	nnc_u64 title_id;         ///< Title ID, also known as a program ID.
 	nnc_u16 title_version;    ///< Title version, see \ref nnc_parse_version.
-	nnc_u8 license_type;      ///< License type.
+	nnc_u8 license_type;      ///< License type, see \ref nnc_ticket_license.
 	nnc_u8 common_keyy;       ///< Common keyY index used for title key encryption.
 	nnc_u32 eshop_account_id; ///< eShop account ID, filled with 0's in many cases.
 	nnc_u8 audit;             ///< Audit.
@@ -37,12 +48,14 @@ typedef struct nnc_ticket {
  */
 nnc_result nnc_read_ticket(nnc_rstream *rs, nnc_ticket *tik);
 
+nnc_result nnc_write_ticket(nnc_ticket *tik, nnc_wstream *ws);
+
 /** \brief         Hashes part of the ticket required for \ref nnc_verify_signature.
  *  \param rs      Stream to hash from.
- *  \param ticket  Ticket data.
+ *  \param tik     Ticket data.
  *  \param digest  Output hash.
  *  \returns
- *  Anything \ref nnc_signature_hash can return.\n
+ *  Anything \ref nnc_sighash can return.\n
  *  \p NNC_R_INVALID_SIG => Invalid signature.
  */
 nnc_result nnc_ticket_signature_hash(nnc_rstream *rs, nnc_ticket *tik, nnc_sha_hash digest);

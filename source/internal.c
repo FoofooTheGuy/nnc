@@ -125,6 +125,9 @@ const char *nnc_strerror(nnc_result res)
 	case NNC_R_BAD_SIG: return "signature failed verification";
 	case NNC_R_CERT_NOT_FOUND: return "certificate not found";
 	case NNC_R_INVALID_CERT: return "invalid certificate type";
+	case NNC_R_FAIL_WRITE: return "failed to write";
+	case NNC_R_NOT_OPEN: return "not open";
+	case NNC_R_OPEN: return "open";
 	}
 	return NULL;
 }

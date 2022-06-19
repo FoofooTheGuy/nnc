@@ -1,4 +1,5 @@
 
+#include <nnc/write-stream.h>
 #include <nnc/read-stream.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,19 +30,13 @@ static result file_seek_rel(nnc_file *self, u32 pos)
 }
 
 static u32 file_size(nnc_file *self)
-{
-	return self->size;
-}
+{ return self->size; }
 
 static void file_close(nnc_file *self)
-{
-	fclose(self->f);
-}
+{ fclose(self->f); }
 
 static u32 file_tell(nnc_file *self)
-{
-	return ftell(self->f);
-}
+{ return ftell(self->f); }
 
 static const nnc_rstream_funcs file_funcs = {
 	.read = (nnc_read_func) file_read,
@@ -62,6 +57,25 @@ result nnc_file_open(nnc_file *self, const char *name)
 	fseek(self->f, 0, SEEK_SET);
 
 	self->funcs = &file_funcs;
+	return NNC_R_OK;
+}
+
+static nnc_result wfile_write(nnc_wfile *self, nnc_u8 *buf, nnc_u32 size)
+{ return fwrite(buf, size, 1, self->f) == 1 ? NNC_R_OK : NNC_R_FAIL_WRITE; }
+
+static void wfile_close(nnc_wfile *self)
+{ fclose(self->f); }
+
+static const nnc_wstream_funcs wfile_funcs = {
+	.write = (nnc_write_func) wfile_write,
+	.close = (nnc_wclose_func) wfile_close,
+};
+
+result nnc_wfile_open(nnc_wfile *self, const char *name)
+{
+	self->f = fopen(name, "wb");
+	if(!self->f) return NNC_R_FAIL_READ;
+	self->funcs = &wfile_funcs;
 	return NNC_R_OK;
 }
 

@@ -3,6 +3,8 @@
  */
 #ifndef inc_nnc_sigcert_h
 #define inc_nnc_sigcert_h
+
+#include <nnc/write-stream.h>
 #include <nnc/read-stream.h>
 #include <nnc/crypto.h>
 #include <nnc/base.h>
@@ -72,6 +74,8 @@ nnc_u16 nnc_sig_dsize(enum nnc_sigtype sig);
  */
 nnc_result nnc_read_sig(nnc_rstream *rs, nnc_signature *sig);
 
+nnc_result nnc_write_sig(nnc_signature *sig, nnc_wstream *ws);
+
 /** \brief      Signature type to string
  *  \return     String version of signature type or NULL if invalid.
  *  \param sig  Signature type.
@@ -96,8 +100,8 @@ nnc_result nnc_verify_signature(nnc_certchain *chain, nnc_signature *sig, nnc_sh
  *  \param digest  Output digest.
  *  \param size    Amount of data to hash.
  *  \return
- *  Anything \ref nnc_crypto_sha256_hash can return.\n
- *  Anything \ref nnc_crypto_sha1_hash can return.\n
+ *  Anything \ref nnc_crypto_sha256_part can return.\n
+ *  Anything \ref nnc_crypto_sha1_part can return.\n
  *  \p NNC_R_INVALID_SIG => \p sig is invalid.
  */
 nnc_result nnc_sighash(nnc_rstream *rs, enum nnc_sigtype sig, nnc_sha_hash digest, nnc_u32 size);

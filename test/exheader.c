@@ -210,7 +210,7 @@ int exheader_main(int argc, char *argv[])
 			printf(", 0x%04" PRIX16, exhdr.resource_limit_descriptors[i]);
 	}
 	puts("]");
-	printf("%li\n", exhdr.access_info);
+
 	printf(
 		" Extdata ID                           : %016" PRIX64 "\n"
 		" System Savedata IDs                  : [%08" PRIX32 ", %08" PRIX32 "]\n"

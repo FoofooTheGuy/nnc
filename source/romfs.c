@@ -246,6 +246,7 @@ nnc_romfs_iterator nnc_romfs_mkit(nnc_romfs_ctx *ctx, nnc_romfs_info *dir)
 	nnc_romfs_iterator ret;
 	if(dir->type != NNC_ROMFS_DIR)
 	{
+		ret.next = INVAL;
 		ret.dir = NULL;
 		return ret;
 	}
