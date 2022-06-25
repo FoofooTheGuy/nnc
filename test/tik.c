@@ -1,5 +1,5 @@
 
-#include <nnc/read-stream.h>
+#include <nnc/stream.h>
 #include <nnc/ticket.h>
 #include <nnc/crypto.h>
 #include <inttypes.h>

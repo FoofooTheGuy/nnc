@@ -10,8 +10,6 @@
 #include <string.h>
 #include "./internal.h"
 
-#define BLOCK_SZ 0x10000
-
 /* In MbedTLS version 2 the normal functions were marked deprecated
  * you were supposed to use *_ret, but in mbedTLS version 3+ the
  * *_ret functions had the functions renamed to have the _ret suffix removed */
@@ -521,18 +519,52 @@ static const nnc_rstream_funcs aes_cbc_funcs = {
 	.tell = (nnc_tell_func) aes_cbc_tell,
 };
 
-nnc_result nnc_aes_cbc_open(nnc_aes_cbc *self, nnc_rstream *child, u8 key[0x10], u8 iv[0x10])
+static result init_aes_cbc(nnc_aes_cbc *self, void *child, u8 key[0x10], u8 iv[0x10], bool set_deckey)
 {
-	self->funcs = &aes_cbc_funcs;
 	if(!(self->crypto_ctx = malloc(sizeof(mbedtls_aes_context))))
 		return NNC_R_NOMEM;
 	memcpy(self->init_iv, iv, 0x10);
 	memcpy(self->iv, iv, 0x10);
 	self->child = child;
 
-	mbedtls_aes_setkey_dec(self->crypto_ctx, key, 128);
-
+	if(set_deckey) mbedtls_aes_setkey_dec(self->crypto_ctx, key, 128);
+	else           mbedtls_aes_setkey_enc(self->crypto_ctx, key, 128);
 	return NNC_R_OK;
+}
+
+nnc_result nnc_aes_cbc_open(nnc_aes_cbc *self, nnc_rstream *child, u8 key[0x10], u8 iv[0x10])
+{
+	self->funcs = &aes_cbc_funcs;
+	return init_aes_cbc(self, child, key, iv, true);
+}
+
+static result aes_cbc_write(nnc_aes_cbc *self, u8 *buf, u32 size)
+{
+	if(size % 0x10 != 0) return NNC_R_BAD_ALIGN;
+	result ret;
+	u8 block[BLOCK_SZ];
+	u32 next_read, pos = 0;
+	while(size != 0)
+	{
+		next_read = MIN(BLOCK_SZ, size);
+		mbedtls_aes_crypt_cbc(self->crypto_ctx, MBEDTLS_AES_ENCRYPT, next_read, self->iv,
+			&buf[pos], block);
+		TRY(NNC_WS_PCALL(self->child, write, block, next_read));
+		pos += next_read;
+		size -= next_read;
+	}
+	return NNC_R_OK;
+}
+
+static const nnc_wstream_funcs aes_cbc_wfuncs = {
+	.write = (nnc_write_func) aes_cbc_write,
+	.close = (nnc_wclose_func) aes_cbc_close,
+};
+
+nnc_result nnc_aes_cbc_open_w(nnc_aes_cbc *self, nnc_wstream *child, u8 key[0x10], u8 iv[0x10])
+{
+	self->funcs = &aes_cbc_wfuncs;
+	return init_aes_cbc(self, child, key, iv, false);
 }
 
 result nnc_decrypt_tkey(nnc_ticket *tik, nnc_keyset *ks, nnc_u8 decrypted[0x10])

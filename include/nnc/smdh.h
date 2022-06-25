@@ -5,7 +5,7 @@
 #ifndef inc_nnc_smdh_h
 #define inc_nnc_smdh_h
 
-#include <nnc/read-stream.h>
+#include <nnc/stream.h>
 #include <nnc/base.h>
 NNC_BEGIN
 

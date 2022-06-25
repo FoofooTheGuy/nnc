@@ -1,5 +1,5 @@
 
-#include <nnc/read-stream.h>
+#include <nnc/stream.h>
 #include <nnc/base.h>
 #include <stdlib.h>
 #include <ctype.h>

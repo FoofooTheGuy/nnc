@@ -1,5 +1,5 @@
 
-#include <nnc/read-stream.h>
+#include <nnc/stream.h>
 #include <nnc/smdh.h>
 #include <inttypes.h>
 #include <nnc/utf.h>

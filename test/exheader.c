@@ -1,6 +1,6 @@
 
-#include <nnc/read-stream.h>
 #include <nnc/exheader.h>
+#include <nnc/stream.h>
 #include <inttypes.h>
 #include <string.h>
 

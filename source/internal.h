@@ -4,6 +4,8 @@
 
 #include <nnc/base.h>
 
+#define BLOCK_SZ 0x10000
+
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
@@ -66,7 +68,7 @@ nnc_u32 nnc_bswap32(nnc_u32 a);
 nnc_u64 nnc_bswap64(nnc_u64 a);
 #endif
 
-/* forward declaration from read-stream.h */
+/* forward declaration from stream.h */
 struct nnc_rstream;
 #define read_at_exact nnc_read_at_exact
 result nnc_read_at_exact(struct nnc_rstream *rs, u32 offset, u8 *data, u32 dsize);

@@ -1,5 +1,5 @@
 
-#include <nnc/read-stream.h>
+#include <nnc/stream.h>
 #include <nnc/romfs.h>
 #include <nnc/ncch.h>
 #include <sys/stat.h>

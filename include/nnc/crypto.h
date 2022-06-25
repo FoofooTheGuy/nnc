@@ -4,7 +4,7 @@
 #ifndef inc_nnc_crypto_h
 #define inc_nnc_crypto_h
 
-#include <nnc/read-stream.h>
+#include <nnc/stream.h>
 #include <nnc/u128.h>
 #include <nnc/base.h>
 NNC_BEGIN
@@ -56,17 +56,17 @@ enum nnc_section {
 };
 
 typedef struct nnc_aes_ctr {
-	const struct nnc_rstream_funcs *funcs;
+	const void *funcs;
 	void *crypto_ctx; ///< Context for the cryptographic library used.
-	nnc_rstream *child;
+	void *child;
 	nnc_u8 ctr[0x10];
 	nnc_u128 iv;
 } nnc_aes_ctr;
 
 typedef struct nnc_aes_cbc {
-	const struct nnc_rstream_funcs *funcs;
+	const void *funcs;
 	void *crypto_ctx; ///< Context for the cryptographic library used.
-	nnc_rstream *child;
+	void *child;
 	nnc_u8 init_iv[0x10];
 	nnc_u8 iv[0x10];
 } nnc_aes_cbc;
@@ -243,6 +243,19 @@ nnc_result nnc_aes_ctr_open(nnc_aes_ctr *self, nnc_rstream *child, nnc_u128 *key
  *  \p NNC_R_NOMEM => Failed to allocate AES-CBC context.
  */
 nnc_result nnc_aes_cbc_open(nnc_aes_cbc *self, nnc_rstream *child, nnc_u8 key[0x10],
+	nnc_u8 iv[0x10]);
+
+/** \brief        Encrypt an AES-CBC stream on-the-fly.
+ *  \param self   Output AES-CBC stream.
+ *  \param child  Child stream to encrypt from.
+ *  \param key    Encryption key.
+ *  \param iv     IV.
+ *  \warning      As this stream does not keep it's own offsets, do not open one multiple
+ *                times to one substream.
+ *  \note         All operations to this stream should be aligned to 0x10 bytes.
+ *  \note         Calling close on this stream doesn't close the substream.
+ */
+nnc_result nnc_aes_cbc_open_w(nnc_aes_cbc *self, nnc_wstream *child, nnc_u8 key[0x10],
 	nnc_u8 iv[0x10]);
 
 /** \brief         Get a key pair for an NCCH.

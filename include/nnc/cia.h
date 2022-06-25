@@ -5,7 +5,7 @@
 #ifndef inc_nnc_cia_h
 #define inc_nnc_cia_h
 
-#include <nnc/read-stream.h>
+#include <nnc/stream.h>
 #include <nnc/crypto.h>
 #include <nnc/base.h>
 #include <nnc/tmd.h>
@@ -144,6 +144,13 @@ nnc_result nnc_cia_open_content(nnc_cia_content_reader *reader, nnc_u16 index,
  *  \param reader  Reader to free memory of.
  */
 void nnc_cia_free_reader(nnc_cia_content_reader *reader);
+
+/** \brief        Get the IV used for CIA content encryption & CDN encryption, the key is the decrypted title key (see \ref nnc_decrypt_tkey).
+ *  \param iv     Output IV.
+ *  \param index  Index of content to decrypt.
+ */
+void nnc_cia_get_iv(nnc_u8 iv[0x10], nnc_u16 index);
+
 
 NNC_END
 #endif

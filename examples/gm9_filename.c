@@ -3,7 +3,7 @@
  *           from a CIA to generate a Gomode9 filename.
  */
 
-#include <nnc/read-stream.h>
+#include <nnc/stream.h>
 #include <nnc/crypto.h>
 #include <nnc/exefs.h>
 #include <inttypes.h>

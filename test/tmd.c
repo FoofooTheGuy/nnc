@@ -1,6 +1,5 @@
 
-#include <nnc/write-stream.h>
-#include <nnc/read-stream.h>
+#include <nnc/stream.h>
 #include <inttypes.h>
 #include <nnc/tmd.h>
 #include <stdlib.h>

@@ -1,6 +1,5 @@
 
-#include <nnc/write-stream.h>
-#include <nnc/read-stream.h>
+#include <nnc/stream.h>
 #include <stdlib.h>
 #include <string.h>
 #include "./internal.h"
@@ -61,7 +60,7 @@ result nnc_file_open(nnc_file *self, const char *name)
 }
 
 static nnc_result wfile_write(nnc_wfile *self, nnc_u8 *buf, nnc_u32 size)
-{ return fwrite(buf, size, 1, self->f) == 1 ? NNC_R_OK : NNC_R_FAIL_WRITE; }
+{ return fwrite(buf, 1, size, self->f) == size ? NNC_R_OK : NNC_R_FAIL_WRITE; }
 
 static void wfile_close(nnc_wfile *self)
 { fclose(self->f); }
@@ -74,7 +73,7 @@ static const nnc_wstream_funcs wfile_funcs = {
 result nnc_wfile_open(nnc_wfile *self, const char *name)
 {
 	self->f = fopen(name, "wb");
-	if(!self->f) return NNC_R_FAIL_READ;
+	if(!self->f) return NNC_R_FAIL_OPEN;
 	self->funcs = &wfile_funcs;
 	return NNC_R_OK;
 }
@@ -216,5 +215,26 @@ void nnc_subview_open(nnc_subview *self, nnc_rstream *child, nnc_u32 off, nnc_u3
 	self->size = len;
 	self->off = off;
 	self->pos = 0;
+}
+
+//
+
+nnc_result nnc_copy(nnc_rstream *from, nnc_wstream *to)
+{
+	u8 block[BLOCK_SZ];
+	u32 left = NNC_RS_PCALL0(from, size), next, actual;
+	result ret;
+	TRY(NNC_RS_PCALL(from, seek_abs, 0));
+
+	while(left != 0)
+
+	{
+		next = MIN(left, BLOCK_SZ);
+		TRY(NNC_RS_PCALL(from, read, block, next, &actual));
+		if(actual != next) return NNC_R_TOO_SMALL;
+		TRY(NNC_WS_PCALL(to, write, block, next));
+		left -= next;
+	}
+	return NNC_R_OK;
 }
 

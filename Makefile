@@ -31,7 +31,7 @@ test: $(TARGET) $(TEST_TARGET)
 shared:
 	$(MAKE) CFLAGS="$(CFLAGS) -fPIC" BUILD="$(BUILD)/PIC" $(SO_TARGET)
 static: $(TARGET)
-examples: bin/ bin/gm9_filename bin/determine_legitimacy
+examples: bin/ bin/gm9_filename bin/determine_legitimacy bin/extract_cdn_contents
 clean:
 	rm -rf $(BUILD) $(TARGET) $(SO_TARGET)
 install: static shared
@@ -63,4 +63,6 @@ bin/:
 bin/gm9_filename: examples/gm9_filename.c $(TARGET)
 	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) $(LIBS)
 bin/determine_legitimacy: examples/determine_legitimacy.c $(TARGET)
+	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) $(LIBS)
+bin/extract_cdn_contents: examples/extract_cdn_contents.c $(TARGET)
 	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) $(LIBS)

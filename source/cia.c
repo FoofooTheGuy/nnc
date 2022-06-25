@@ -9,6 +9,9 @@
 #define CALIGN(n) ALIGN(n, 64)
 #define HDR_AL CALIGN(0x2020)
 
+#define BLOCK_SZ 0x10000
+
+
 nnc_result nnc_read_cia_header(nnc_rstream *rs, nnc_cia_header *cia)
 {
 	nnc_u8 header[0x2020];
@@ -54,6 +57,13 @@ nnc_result nnc_cia_open_meta(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *
 	nnc_u32 offset = HDR_AL + CALIGN(cia->cert_chain_size) + CALIGN(cia->ticket_size) + CALIGN(cia->tmd_size) + CALIGN(cia->content_size);
 	nnc_subview_open(sv, rs, offset, cia->meta_size);
 	return NNC_R_OK;
+}
+
+void nnc_cia_get_iv(nnc_u8 iv[0x10], u16 index)
+{
+	memset(&iv[2], 0, 0x10 - 2);
+	u16 *iv16 = (u16 *) iv;
+	iv16[0] = BE16(index);
 }
 
 nnc_result nnc_cia_make_reader(nnc_cia_header *cia, nnc_rstream *rs,

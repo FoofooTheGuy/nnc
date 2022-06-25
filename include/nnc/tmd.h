@@ -5,8 +5,8 @@
 #ifndef inc_nnc_tmd_h
 #define inc_nnc_tmd_h
 
-#include <nnc/read-stream.h>
 #include <nnc/sigcert.h>
+#include <nnc/stream.h>
 #include <nnc/crypto.h>
 #include <nnc/base.h>
 NNC_BEGIN
