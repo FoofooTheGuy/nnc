@@ -125,18 +125,21 @@ int cia_main(int argc, char *argv[])
 		/* this section is here to test CBC seeking */
 		NNC_RS_CALL(ncch, seek_abs, 0);
 		nnc_ncch_header ncch_hdr;
-		if(nnc_read_ncch_header(NNC_RSP(&ncch), &ncch_hdr) != NNC_R_OK)
-			die("failed reading NCCH header");
-		nnc_ncch_section_stream rrs;
-		nnc_fill_keypair(&kp, &ks, NULL, &ncch_hdr);
-		if(nnc_ncch_section_romfs(&ncch_hdr, NNC_RSP(&ncch), &kp, &rrs) == NNC_R_OK)
+		/* DSiWare doesn't have an NCCH, lets not make this a fatal error... */
+		if(nnc_read_ncch_header(NNC_RSP(&ncch), &ncch_hdr) == NNC_R_OK)
 		{
-			nnc_romfs_header romfs;
-			if(nnc_read_romfs_header(NNC_RSP(&rrs), &romfs) != NNC_R_OK)
-				printf("WARN: Failed reading romfs header.\n");
-		}
+			nnc_ncch_section_stream rrs;
+			nnc_fill_keypair(&kp, &ks, NULL, &ncch_hdr);
+			if(nnc_ncch_section_romfs(&ncch_hdr, NNC_RSP(&ncch), &kp, &rrs) == NNC_R_OK)
+			{
+				nnc_romfs_header romfs;
+				if(nnc_read_romfs_header(NNC_RSP(&rrs), &romfs) != NNC_R_OK)
+					printf("WARN: Failed reading romfs header.\n");
+			}
 
-		NNC_RS_CALL0(ncch, close);
+			NNC_RS_CALL0(ncch, close);
+		}
+		else fprintf(stderr, "WARN: Failed to read NCCH header. Is this a DSiWare?\n");
 	}
 	nnc_cia_free_reader(&reader);
 

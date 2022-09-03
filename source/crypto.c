@@ -210,11 +210,15 @@ nnc_result nnc_keyset_default(nnc_keyset *ks, bool dev)
 static const u128 C1_b = NNC_HEX128(0x1FF9E9AAC5FE0408,024591DC5D52768A);
 static const u128 *C1 = &C1_b;
 
+static const u128 C2_b = NNC_HEX128(0xFFFEFB4E29590258,2A680F5F1A4F3E79);
+static const u128 *C2 = &C2_b;
+
 static const u128 system_fixed_key = NNC_HEX128(0x527CE630A9CA305F,3696F3CDE954194B);
 static const u128 fixed_key = NNC_HEX128(0x0000000000000000,0000000000000000);
 
 static void hwkgen_3ds(u128 *output, u128 *kx, u128 *ky)
 {
+	/* NormalKey = (((KeyX ROL 2) XOR KeyY) + C1) ROR 41 */
 	*output = *kx;
 	nnc_u128_rol(output, 2);
 	nnc_u128_xor(output, ky);
@@ -222,14 +226,31 @@ static void hwkgen_3ds(u128 *output, u128 *kx, u128 *ky)
 	nnc_u128_ror(output, 41);
 }
 
+static void hwkgen_dsi(u128 *output, u128 *kx, u128 *ky)
+{
+	/* NormalKey = ((KeyX XOR KeyY) + C2) ROL 42 */
+	*output = *kx;
+	nnc_u128_xor(output, ky);
+	nnc_u128_add(output, C2);
+	nnc_u128_rol(output, 42);
+}
+
+static void hwkgen(nnc_ncch_header *ncch, u128 *output, u128 *kx, u128 *ky)
+{
+	if(nnc_tid_category(ncch->title_id) & NNC_TID_CAT_TWL)
+		hwkgen_dsi(output, kx, ky);
+	else
+		hwkgen_3ds(output, kx, ky);
+}
+
 nnc_result nnc_keyy_seed(nnc_ncch_header *ncch, nnc_u128 *keyy, u8 seed[NNC_SEED_SIZE])
 {
 	nnc_sha256_hash hashbuf;
 	nnc_u8 strbuf[0x20];
 	memcpy(strbuf, seed, NNC_SEED_SIZE);
-	memcpy(strbuf + NNC_SEED_SIZE, &ncch->title_id, sizeof(ncch->title_id));
+	memcpy(strbuf + NNC_SEED_SIZE, &LE64(ncch->title_id), sizeof(ncch->title_id));
 	nnc_crypto_sha256(strbuf, hashbuf, 0x18);
-	if(U32P(hashbuf) != ncch->seed_hash)
+	if(memcmp(hashbuf, ncch->seed_hash, 4) != 0)
 		return NNC_R_CORRUPT;
 	nnc_u128_bytes_be(&ncch->keyy, strbuf);
 	memcpy(strbuf + 0x10, seed, NNC_SEED_SIZE);
@@ -271,7 +292,7 @@ result nnc_key_menu_info(u128 *output, nnc_keyset *ks, nnc_ncch_header *ncch)
 	if(!(ks->flags & DEFAULT)) return NNC_R_KEY_NOT_FOUND;
 	/* "menu info" always uses keyslot 0x2C and the unencrypted
 	 * keyy even if NNC_NCCH_USES_SEED is set (!!!) */
-	hwkgen_3ds(output, &ks->kx_ncch0, &ncch->keyy);
+	hwkgen(ncch, output, &ks->kx_ncch0, &ncch->keyy);
 	return NNC_R_OK;
 }
 
@@ -287,7 +308,7 @@ result nnc_key_content(u128 *output, nnc_keyset *ks, nnc_seeddb *seeddb,
 
 	switch(ncch->crypt_method)
 	{
-#define CASE(val, key, dep) case val: if(!(ks->flags & (dep))) return NNC_R_KEY_NOT_FOUND; hwkgen_3ds(output, &ks->kx_ncch##key, &ky); break;
+#define CASE(val, key, dep) case val: if(!(ks->flags & (dep))) return NNC_R_KEY_NOT_FOUND; hwkgen(ncch, output, &ks->kx_ncch##key, &ky); break;
 	CASE(0x00, 0, DEFAULT)
 	CASE(0x01, 1, DEFAULT)
 	CASE(0x0A, A, DEFAULT)
@@ -348,55 +369,129 @@ result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, u8 for_section,
 	return NNC_R_OK;
 }
 
+struct generic_crypto_obj {
+	const void *funcs;
+	void *crypto_ctx;
+	void *child;
+	nnc_u8 last_unaligned_block[0x10];
+	/* crypto-method specific data */
+	nnc_u8 additional_data[];
+};
+
+typedef void   (*crypto_decrypt_func)(struct generic_crypto_obj *self, u32 size, u8 *buf);
+typedef result (*crypto_redo_iv_func)(struct generic_crypto_obj *self, u32 pos);
+
+static result do_crypto_seek(struct generic_crypto_obj *self, u32 pos, crypto_redo_iv_func redo_iv)
+{
+	u32 cpos = NNC_RS_PCALL0(self->child, tell);
+	nnc_result ret;
+	/* i doubt this will happen but it's here anyways
+	 * to save a bit of time. */
+	if(cpos == pos) return NNC_R_OK;
+	if(pos % 0x10 == 0)
+	{
+		TRY(redo_iv(self, pos));
+	}
+	else
+	{
+		/* we need to do the slightly more complicated version */
+		u32 aligned = ALIGN_DOWN(pos, 0x10);
+		NNC_RS_PCALL(self->child, seek_abs, aligned);
+		TRY(redo_iv(self, aligned));
+		u32 totalRead;
+		ret = NNC_RS_PCALL(self, read, self->last_unaligned_block, 0x10, &totalRead);
+		if(ret != NNC_R_OK || totalRead != 0x10)
+			return NNC_R_TOO_SMALL;
+	}
+	return NNC_RS_PCALL(self->child, seek_abs, pos);
+}
+
+static result do_crypto_read(struct generic_crypto_obj *self, u8 *buf, u32 max, u32 *totalRead, crypto_decrypt_func decrypt)
+{
+	u32 offset = NNC_RS_PCALL0(self->child, tell);
+	u32 real_read = 0;
+	/* if the starting offset is not aligned we need to do a little more fuckery */
+	if(offset % 0x10 != 0)
+	{
+		/* TODO: This does not account for case if the last read was at the end */
+		u8 skip = offset & (0x10 - 1);
+		u8 need = 0x10 - skip;
+		/* for the exceptional case that need > max */
+		need = MIN(need, max);
+		memcpy(buf, self->last_unaligned_block + skip, need);
+		real_read += need;
+		buf += need;
+		max -= need;
+		/* seek to the next block so we don't read data twice */
+		NNC_RS_PCALL(self->child, seek_rel, need);
+	}
+
+	u32 aligned_max = ALIGN_DOWN(max, 0x10);
+
+	result ret;
+	bool full_read;
+	if(aligned_max)
+	{
+		TRY(NNC_RS_PCALL(self->child, read, buf, aligned_max, totalRead));
+		full_read = *totalRead == aligned_max;
+		if(*totalRead % 0x10 != 0)
+		{
+			/* this could theorically be handled but i don't think it matters much */
+			return NNC_R_BAD_ALIGN;
+		}
+		decrypt(self, *totalRead, buf);
+		real_read += *totalRead;
+		buf += *totalRead;
+		max -= *totalRead;
+	} else full_read = true;
+
+	/* if we still need to read some unaligned data: */
+	if(full_read && max)
+	{
+		TRY(NNC_RS_PCALL(self->child, read, self->last_unaligned_block, 0x10, totalRead));
+		if(*totalRead != 0x10)
+			memset(self->last_unaligned_block + *totalRead, 0x00, 0x10 - *totalRead);
+		decrypt(self, 0x10, self->last_unaligned_block);
+		u8 applicable_read = MIN(*totalRead, max);
+		/* "unread" the extra bytes we read so we get the correct offset */
+		TRY(NNC_RS_PCALL(self->child, seek_abs, NNC_RS_PCALL0(self->child, tell) - (0x10 - applicable_read)));
+		memcpy(buf, self->last_unaligned_block, applicable_read);
+		real_read += applicable_read;
+	}
+	*totalRead = real_read;
+	return NNC_R_OK;
+}
+
 /* nnc_aes_ctr */
 
-static void redo_ctr_iv(nnc_aes_ctr *ac, u32 offset)
+static result redo_ctr_iv(nnc_aes_ctr *ac, u32 offset)
 {
 	u128 ctr = NNC_PROMOTE128(offset / 0x10);
 	nnc_u128_add(&ctr, &ac->iv);
 	nnc_u128_bytes_be(&ctr, ac->ctr);
+	return NNC_R_OK;
+}
+
+static void aes_ctr_decrypt(nnc_aes_ctr *self, u32 size, u8 *buf)
+{
+	size_t of = 0;
+	u8 block[0x10];
+	mbedtls_aes_crypt_ctr(self->crypto_ctx, size, &of, self->ctr, block, buf, buf);
 }
 
 static result aes_ctr_read(nnc_aes_ctr *self, u8 *buf, u32 max, u32 *totalRead)
 {
-	if(max % 0x10 != 0) return NNC_R_BAD_ALIGN;
-
-	result ret;
-	TRY(NNC_RS_PCALL(self->child, read, buf, max, totalRead));
-
-	/* if we read unaligned we need to align it down */
-	if(*totalRead % 0x10 != 0) *totalRead = ALIGN(*totalRead, 0x10) - 0x10;
-
-	/* now we gotta decrypt *totalRead bytes in buf */
-	u8 block[0x10];
-	size_t of = 0;
-	mbedtls_aes_crypt_ctr(self->crypto_ctx, *totalRead, &of, self->ctr, block, buf, buf);
-
-	return NNC_R_OK;
+	return do_crypto_read((struct generic_crypto_obj *) self, buf, max, totalRead, (crypto_decrypt_func) aes_ctr_decrypt);
 }
 
 static result aes_ctr_seek_abs(nnc_aes_ctr *self, u32 pos)
 {
-	if(pos % 0x10 != 0) return NNC_R_BAD_ALIGN;
-	u32 cpos = NNC_RS_PCALL0(self->child, tell);
-	/* i doubt this will happen but it's here anyways
-	 * to save a bit of time. */
-	if(cpos == pos) return NNC_R_OK;
-	NNC_RS_PCALL(self->child, seek_abs, pos);
-	redo_ctr_iv(self, pos);
-	return NNC_R_OK;
+	return do_crypto_seek((struct generic_crypto_obj *) self, pos, (crypto_redo_iv_func) redo_ctr_iv);
 }
 
 static result aes_ctr_seek_rel(nnc_aes_ctr *self, u32 pos)
 {
-	if(pos % 0x10 != 0) return NNC_R_BAD_ALIGN;
-	/* i doubt this will happen but it's here anyways
-	 * to save a bit of time. */
-	if(pos == 0) return NNC_R_OK;
-	pos = NNC_RS_PCALL0(self->child, tell) + pos;
-	NNC_RS_PCALL(self->child, seek_abs, pos);
-	redo_ctr_iv(self, pos);
-	return NNC_R_OK;
+	return aes_ctr_seek_abs(self, NNC_RS_PCALL0(self->child, tell) + pos);
 }
 
 static u32 aes_ctr_size(nnc_aes_ctr *self)
@@ -445,53 +540,35 @@ static nnc_result redo_cbc_iv(nnc_aes_cbc *self, u32 offset)
 	if(offset == 0) memcpy(self->iv, self->init_iv, 0x10);
 	else
 	{
-		result ret, saved;
+		result ret;
 		/* the new IV is the previous encrypted block */
-		TRY(NNC_RS_PCALL(self->child, seek_abs, NNC_RS_PCALL0(self->child, tell) - 16));
+		TRY(NNC_RS_PCALL(self->child, seek_abs, offset - 16));
 		u32 read;
-		saved = NNC_RS_PCALL(self->child, read, self->iv, 16, &read);
-		if(saved != NNC_R_OK || read != 0x10)
+		ret = NNC_RS_PCALL(self->child, read, self->iv, 16, &read);
+		if(ret != NNC_R_OK || read != 0x10)
 			return NNC_R_TOO_SMALL;
 	}
 	return NNC_R_OK;
 }
 
+static void aes_cbc_decrypt(nnc_aes_cbc *self, u32 size, u8 *buf)
+{
+	mbedtls_aes_crypt_cbc(self->crypto_ctx, MBEDTLS_AES_DECRYPT, size, self->iv, buf, buf);
+}
+
 static result aes_cbc_read(nnc_aes_cbc *self, u8 *buf, u32 max, u32 *totalRead)
 {
-	if(max % 0x10 != 0) return NNC_R_BAD_ALIGN;
-
-	result ret;
-	TRY(NNC_RS_PCALL(self->child, read, buf, max, totalRead));
-
-	/* if we read unaligned we need to align it down */
-	if(*totalRead % 0x10 != 0) *totalRead = ALIGN(*totalRead, 0x10) - 0x10;
-
-	/* now we gotta decrypt *totalRead bytes in buf */
-	mbedtls_aes_crypt_cbc(self->crypto_ctx, MBEDTLS_AES_DECRYPT, *totalRead, self->iv,
-		buf, buf);
-	return NNC_R_OK;
+	return do_crypto_read((struct generic_crypto_obj *) self, buf, max, totalRead, (crypto_decrypt_func) aes_cbc_decrypt);
 }
 
 static result aes_cbc_seek_abs(nnc_aes_cbc *self, u32 pos)
 {
-	if(pos % 0x10 != 0) return NNC_R_BAD_ALIGN;
-	u32 cpos = NNC_RS_PCALL0(self->child, tell);
-	/* i doubt this will happen but it's here anyways
-	 * to save a bit of time. */
-	if(cpos == pos) return NNC_R_OK;
-	NNC_RS_PCALL(self->child, seek_abs, pos);
-	return redo_cbc_iv(self, pos);
+	return do_crypto_seek((struct generic_crypto_obj *) self, pos, (crypto_redo_iv_func) redo_cbc_iv);
 }
 
 static result aes_cbc_seek_rel(nnc_aes_cbc *self, u32 pos)
 {
-	if(pos % 0x10 != 0) return NNC_R_BAD_ALIGN;
-	/* i doubt this will happen but it's here anyways
-	 * to save a bit of time. */
-	if(pos == 0) return NNC_R_OK;
-	pos = NNC_RS_PCALL0(self->child, tell) + pos;
-	NNC_RS_PCALL(self->child, seek_abs, pos);
-	return redo_cbc_iv(self, pos);
+	return aes_cbc_seek_abs(self, NNC_RS_PCALL0(self->child, tell) + pos);
 }
 
 static u32 aes_cbc_size(nnc_aes_cbc *self)

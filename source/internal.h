@@ -60,7 +60,8 @@
 #define TRY(expr) if((ret = ( expr )) != NNC_R_OK) return ret
 #define TRYLBL(expr, label) if((ret = ( expr )) != NNC_R_OK) goto label
 
-#define ALIGN(a, n) (((a) + ((n) - 1)) & ~((n) - 1))
+#define ALIGN(a, n)      (((a) + ((n) - 1)) & ~((n) - 1))
+#define ALIGN_DOWN(a, n) (((a) & ~((n) - 1)))
 
 #ifndef BSWAP_BUILTIN
 nnc_u16 nnc_bswap16(nnc_u16 a);

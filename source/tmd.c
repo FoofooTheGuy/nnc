@@ -2,8 +2,10 @@
 #include <nnc/sigcert.h>
 #include <nnc/tmd.h>
 #include <string.h>
+#include <stdlib.h>
 #include "./internal.h"
 
+#define CINFO_UNUSED_SIZE ((NNC_CINFO_MAX_SIZE - 1) * 0x24)
 #define CINFO_SIZE (NNC_CINFO_MAX_SIZE * 0x24)
 
 
@@ -147,5 +149,61 @@ result nnc_tmd_signature_hash(nnc_rstream *rs, nnc_tmd_header *tmd, nnc_sha_hash
 	NNC_RS_PCALL(rs, seek_abs, pos);
 	/* 0xC4 = sizeof(tmd_header) */
 	return nnc_sighash(rs, tmd->sig.type, digest, 0xC4);
+}
+
+result nnc_write_tmd(nnc_tmd_header *tmd, nnc_chunk_record *records, u16 numrecords, nnc_wstream *ws)
+{
+	if(numrecords != tmd->content_count)
+		return NNC_R_INVAL;
+
+	result ret;
+	TRY(nnc_write_sig(&tmd->sig, ws));
+
+	/* generate the records data... */
+	typedef u8 record[0x30];
+	size_t reclen = sizeof(record) * numrecords;
+	record *recdata = malloc(reclen);
+	for(int i = 0; i < numrecords; ++i)
+	{
+		U32P(&recdata[i][0x00]) = BE32(records[i].id);
+		U16P(&recdata[i][0x04]) = BE16(records[i].index);
+		U16P(&recdata[i][0x06]) = BE16(records[i].flags);
+		U64P(&recdata[i][0x08]) = BE64(records[i].size);
+		memcpy(&recdata[i][0x10], records[i].hash, 0x20);
+	}
+
+	/* generate content info record */
+	u8 header[0x84 + CINFO_SIZE];
+	u8 *cinfo = &header[0x84];
+	memset(&cinfo[0x24], 0, CINFO_UNUSED_SIZE);
+
+	U16P(&cinfo[0x00]) = 0;
+	U16P(&cinfo[0x02]) = BE16(numrecords);
+	/* has all records and put them in */
+	nnc_crypto_sha256((u8 *) recdata, &cinfo[0x04], reclen);
+
+	/* and finally we generate the header */
+	header[0x00] = tmd->version;
+	header[0x01] = tmd->ca_crl_ver;
+	header[0x02] = tmd->signer_crl_ver;
+	header[0x03] = 0; /* reserved */
+	U64P(&header[0x04]) = BE64(tmd->sys_ver);
+	U64P(&header[0x0C]) = BE64(tmd->title_id);
+	U32P(&header[0x14]) = BE32(tmd->title_type);
+	U16P(&header[0x18]) = BE16(tmd->group_id);
+	U32P(&header[0x1A]) = LE32(tmd->save_size);
+	U32P(&header[0x1E]) = LE32(tmd->priv_save_size);
+	memset(&header[0x22], 0, 0x36);
+	U32P(&header[0x58]) = BE32(tmd->access_rights);
+	U16P(&header[0x5C]) = BE16(tmd->title_ver);
+	U16P(&header[0x5E]) = BE16(tmd->content_count);
+	U16P(&header[0x60]) = BE16(tmd->boot_content);
+	U16P(&header[0x62]) = 0; /* padding */
+	nnc_crypto_sha256(cinfo, &header[0x64], CINFO_SIZE);
+
+	TRY(NNC_WS_PCALL(ws, write, header, sizeof(header)));
+	TRY(NNC_WS_PCALL(ws, write, (u8 *) recdata, reclen));
+
+	return NNC_R_OK;
 }
 

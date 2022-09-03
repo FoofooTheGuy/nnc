@@ -48,7 +48,7 @@ typedef struct nnc_ncch_header {
 	nnc_u64 partition_id;           ///< Partition ID.
 	char maker_code[3];             ///< Maker code, NULL-terminated but length is always 2.
 	nnc_u16 version;                ///< NCCH format version.
-	nnc_u32 seed_hash;              ///< First u32 of SHA256 hash of seed if used.
+	nnc_u8 seed_hash[4];            ///< First u32 of SHA256 hash of seed if used.
 	nnc_u64 title_id;               ///< Also known as a "program id".
 	nnc_sha256_hash logo_hash;      ///< Hash of the logo region.
 	char product_code[17];          ///< Product code, NULL-terminated but length is always 16.

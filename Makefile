@@ -40,7 +40,7 @@ install: static shared
 	mkdir -p $(DESTDIR)/include/nnc
 	install include/nnc/* $(DESTDIR)/include/nnc
 uninstall:
-	rm -rf $(DESTDIR)/lib/libnnc.so $(DESTDIR)/lib/libnnc.a $(DESTDIR)/include/nnc
+	rm -rf $(DESTDIR)/$(LIBDIR)/libnnc.so $(DESTDIR)/$(LIBDIR)/libnnc.a $(DESTDIR)/include/nnc
 
 -include $(DEPS)
 

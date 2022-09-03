@@ -33,7 +33,7 @@ result nnc_read_ncch_header(rstream *rs, nnc_ncch_header *ncch)
 	/* 0x111 */ ncch->maker_code[1] = header[0x111];
 	/* 0x111 */ ncch->maker_code[2] = '\0';
 	/* 0x112 */ ncch->version = LE16P(&header[0x112]);
-	/* 0x114 */ ncch->seed_hash = U32P(&header[0x114]);
+	/* 0x114 */ memcpy(ncch->seed_hash, &header[0x114], 4);
 	/* 0x118 */ ncch->title_id = LE64P(&header[0x118]);
 	/* 0x120 */ /* reserved */
 	/* 0x130 */ memcpy(ncch->logo_hash, &header[0x130], sizeof(nnc_sha256_hash));

@@ -124,7 +124,15 @@ int ncch_info_main(int argc, char *argv[])
 		" Partition ID                 : %016" PRIX64 "\n"
 		" Maker Code                   : %s (0x%04X)\n"
 		" NCCH Version                 : %02X\n"
-		" Seed Check Hash              : %08X\n"
+		" Seed Check Hash              : "
+	, MU_ARG(header.content_size)
+	, header.partition_id, header.maker_code, * (nnc_u16 *) header.maker_code, header.version);
+
+	for(int i = 0; i < 4; ++i)
+		printf("%02X", header.seed_hash[i]);
+
+	printf(
+		"\n"
 		" Title ID                     : %016" PRIX64 "\n"
 		" Product Code                 : %s\n"
 		" Extended Header Size         : 0x%X bytes\n"
@@ -141,9 +149,7 @@ int ncch_info_main(int argc, char *argv[])
 		"                Size          : " MU_PAIRB "\n"
 		" RomFS Region Offset          : " MU_PAIR "\n"
 		"                Size          : " MU_PAIRB "\n"
-	, MU_ARG(header.content_size)
-	, header.partition_id, header.maker_code, * (nnc_u32 *) header.maker_code, header.version
-	, header.seed_hash, header.title_id, header.product_code
+	, header.title_id, header.product_code
 	, header.exheader_size , get_crypt_support(header.crypt_method)
 	/* i don't think this could ever be true, but it's here just in case */
 	, (header.flags & NNC_NCCH_USES_SEED && header.crypt_method != NNC_CRYPT_960)
@@ -152,6 +158,7 @@ int ncch_info_main(int argc, char *argv[])
 	, get_flags(header.flags), MU_ARG(header.plain_offset), MU_ARG(header.plain_size)
 	, MU_ARG(header.logo_offset), MU_ARG(header.logo_size), MU_ARG(header.exefs_offset)
 	, MU_ARG(header.exefs_size), MU_ARG(header.romfs_offset), MU_ARG(header.romfs_size));
+
 	nnc_ncch_section_stream section;
 	nnc_subview sv;
 
@@ -188,6 +195,7 @@ int ncch_info_main(int argc, char *argv[])
 		}
 		NNC_RS_CALL0(section, close);
 	}
+	else puts(" (failed to read)");
 
 	printf(" RomFS Region Hash            : "); print_hash(header.romfs_hash);
 	if(nnc_ncch_section_romfs(&header, NNC_RSP(&f), &kpair, &section) == NNC_R_OK)

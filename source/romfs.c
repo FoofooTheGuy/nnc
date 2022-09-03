@@ -94,7 +94,7 @@ static u32 get_dir_single_offset(nnc_romfs_ctx *ctx, const char *path, u32 len, 
 			break; /* bucket is unused; fail */
 		dir = DIR_META(ctx, offset);
 		namelen = DIR_NAMELEN(dir);
-		if(namelen != rlen * 2 || memcmp(DIR_NAME(dir), conv, namelen))
+		if(namelen != rlen * 2 || memcmp(DIR_NAME(dir), conv, namelen) != 0)
 		{
 			offset = DIR_NEXTHASH(dir);
 			continue;
@@ -120,7 +120,7 @@ static u32 get_file_single_offset(nnc_romfs_ctx *ctx, const char *path, u32 len,
 			break; /* bucket is unused; fail */
 		file = FILE_META(ctx, offset);
 		namelen = FILE_NAMELEN(file);
-		if(namelen != rlen * 2 || memcmp(FILE_NAME(file), conv, namelen))
+		if(namelen != rlen * 2 || memcmp(FILE_NAME(file), conv, namelen) != 0)
 		{
 			offset = FILE_NEXTHASH(file);
 			continue;
