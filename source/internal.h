@@ -69,6 +69,14 @@ nnc_u32 nnc_bswap32(nnc_u32 a);
 nnc_u64 nnc_bswap64(nnc_u64 a);
 #endif
 
+#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
+	#define NNC_PLATFORM_UNIX 1
+#elif defined(_WIN32)
+	#define NNC_PLATFORM_WINDOWS 1
+#elif defined(_3DS) || defined(__3DS__)
+	#define NNC_PLATFORM_3DS 1
+#endif
+
 /* forward declaration from stream.h */
 struct nnc_rstream;
 #define read_at_exact nnc_read_at_exact
@@ -81,6 +89,8 @@ void nnc_dumpmem(void *mem, u32 len);
 #define find_support_file nnc_find_support_file
 #define SUP_FILE_NAME_LEN (1024 + 1)
 bool nnc_find_support_file(const char *name, char *output);
+
+char *nnc_strdup(const char *s);
 
 #endif
 

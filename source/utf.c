@@ -11,14 +11,14 @@ static void write_utf8(u8 *out, int outlen, int *outptr, u32 cp)
 	if(cp < 0x80)
 	{
 		int n = *outptr + 1;
-		if(n <= outlen)
+		if(n < outlen)
 			out[*outptr] = cp;
 		*outptr = n;
 	}
 	else if(cp < 0x800)
 	{
 		int n = *outptr + 2;
-		if(n <= outlen)
+		if(n < outlen)
 		{
 			out[*outptr + 0] = (cp >> 6)   | 0xC0;
 			out[*outptr + 1] = (cp & 0x3F) | 0x80;
@@ -28,7 +28,7 @@ static void write_utf8(u8 *out, int outlen, int *outptr, u32 cp)
 	else if(cp < 0x10000)
 	{
 		int n = *outptr + 3;
-		if(n <= outlen)
+		if(n < outlen)
 		{
 			out[*outptr + 0] = (cp >> 12)         | 0xE0;
 			out[*outptr + 1] = ((cp >> 6) & 0x3F) | 0x80;
@@ -39,7 +39,7 @@ static void write_utf8(u8 *out, int outlen, int *outptr, u32 cp)
 	else if(cp < 0x110000)
 	{
 		int n = *outptr + 4;
-		if(n <= outlen)
+		if(n < outlen)
 		{
 			out[*outptr + 0] = (cp >> 18)          | 0xF0;
 			out[*outptr + 1] = ((cp >> 12) & 0x3F) | 0x80;
@@ -57,7 +57,7 @@ static void write_utf16(u16 *out, int outlen, int *outptr, u32 cp)
 	if(cp < 0x10000)
 	{
 		int n = *outptr + 1;
-		if(n <= outlen)
+		if(n < outlen)
 			out[*outptr] = cp;
 		*outptr = n;
 	}
@@ -65,7 +65,7 @@ static void write_utf16(u16 *out, int outlen, int *outptr, u32 cp)
 	{
 		cp &= ~0x10000;
 		int n = *outptr + 2;
-		if(n <= outlen)
+		if(n < outlen)
 		{
 			out[*outptr + 0] = (cp >> 10)   | 0xD800;
 			out[*outptr + 1] = (cp & 0x3FF) | 0xDC00;

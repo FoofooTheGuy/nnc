@@ -1,4 +1,7 @@
 
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+
 #include <nnc/stream.h>
 #include <stdlib.h>
 #include <string.h>
@@ -81,7 +84,7 @@ result nnc_wfile_open(nnc_wfile *self, const char *name)
 static result mem_read(nnc_memory *self, u8 *buf, u32 max, u32 *totalRead)
 {
 	*totalRead = MIN(max, self->size);
-	memcpy(buf, ((u8 *) self->ptr) + self->pos, *totalRead);
+	memcpy(buf, ((u8 *) self->un.ptr_const) + self->pos, *totalRead);
 	self->pos += *totalRead;
 	return NNC_R_OK;
 }
@@ -114,7 +117,7 @@ static void mem_close(nnc_memory *self)
 
 static void mem_own_close(nnc_memory *self)
 {
-	free(self->ptr);
+	free(self->un.ptr);
 }
 
 static u32 mem_tell(nnc_memory *self)
@@ -140,11 +143,11 @@ static const nnc_rstream_funcs mem_own_funcs = {
 	.tell = (nnc_tell_func) mem_tell,
 };
 
-void nnc_mem_open(nnc_memory *self, void *ptr, u32 size)
+void nnc_mem_open(nnc_memory *self, const void *ptr, u32 size)
 {
 	self->funcs = &mem_funcs;
 	self->size = size;
-	self->ptr = ptr;
+	self->un.ptr_const = ptr;
 	self->pos = 0;
 }
 
@@ -152,7 +155,7 @@ void nnc_mem_own_open(nnc_memory *self, void *ptr, u32 size)
 {
 	self->funcs = &mem_own_funcs;
 	self->size = size;
-	self->ptr = ptr;
+	self->un.ptr = ptr;
 	self->pos = 0;
 }
 
@@ -217,6 +220,251 @@ void nnc_subview_open(nnc_subview *self, nnc_rstream *child, nnc_u32 off, nnc_u3
 	self->pos = 0;
 }
 
+/* ...vfs code... */
+
+nnc_result nnc_vfs_init(nnc_vfs *vfs, int initial_size)
+{
+	/* no real rationale for making this 32 other than it looks nice */
+	if(!initial_size) initial_size = 32;
+
+	if(!(vfs->nodes = malloc(initial_size * sizeof(nnc_vfs_node))))
+		return NNC_R_NOMEM;
+
+	vfs->size = initial_size;
+	vfs->len = 0;
+
+	return NNC_R_OK;
+}
+
+static struct nnc_vfs_node *nnc_vfs_allocate_node(nnc_vfs *vfs)
+{
+	if(vfs->size == vfs->len)
+	{
+		int newsize = vfs->size * 2;
+		nnc_vfs_node *nnodes = realloc(vfs->nodes, newsize * sizeof(nnc_vfs_node));
+		if(!nnodes) return NULL;
+		vfs->nodes = nnodes;
+		vfs->size = newsize;
+	}
+	return &vfs->nodes[vfs->len++];
+}
+
+nnc_result nnc_vfs_add(nnc_vfs *vfs, const char *vfilename, const nnc_vfs_generator *generator, ... /* generator parameters */)
+{
+	nnc_vfs_node *node;
+	if(!(node = nnc_vfs_allocate_node(vfs)))
+		return NNC_R_NOMEM;
+
+	node->vname = nnc_strdup(vfilename);
+	node->generator = generator;
+	node->is_dir = 0;
+
+	va_list va;
+	va_start(va, generator);
+	nnc_result ret = generator->init_file_node(&node->generator_data, va);
+	va_end(va);
+
+	return ret;
+}
+
+nnc_result nnc_vfs_add_dir(nnc_vfs *vfs, const char *vdirname)
+{
+	nnc_vfs_node *node;
+	if(!(node = nnc_vfs_allocate_node(vfs)))
+		return NNC_R_NOMEM;
+
+	node->is_dir = 1;
+	node->generator = NULL;
+	node->generator_data = NULL;
+	node->vname = nnc_strdup(vdirname);
+
+	return NNC_R_OK;
+}
+
+void nnc_vfs_free(nnc_vfs *vfs)
+{
+	nnc_vfs_node *node;
+	for(int i = 0; i < vfs->len; ++i)
+	{
+		node = &vfs->nodes[i];
+		if(node->generator)
+			node->generator->delete_file_node(node->generator_data);
+		free(node->vname);
+	}
+	free(vfs->nodes);
+}
+
+nnc_result nnc_vfs_open_node(nnc_vfs_node *node, nnc_rstream **res)
+{
+	return node->generator->reader_from_node(res, node->generator_data);
+}
+
+size_t nnc_vfs_node_size(nnc_vfs_node *node)
+{
+	return node->generator->size(node->generator_data);
+}
+
+void nnc_vfs_close_node(nnc_rstream *rs)
+{
+	NNC_RS_PCALL0(rs, close);
+	free(rs);
+}
+
+#if NNC_PLATFORM_UNIX || NNC_PLATFORM_3DS
+	#include <sys/types.h>
+	#include <dirent.h>
+	#define DIRENT_API 1
+#elif NNC_PLATFORM_WINDOWS
+	#include <windows.h>
+	#define WINDOWS_API 1
+#endif
+
+#if DIRENT_API /* || WINDOWS_API */
+static nnc_result nnc_vfs_link_directory_impl(nnc_vfs *vfs, const char *dirname, const char *reldir)
+{
+	size_t namealloc = 0, prefixalloc = strlen(dirname) + 1, nlen, vnamealloc = 0, vprefixalloc = strlen(reldir) + 2;
+	char *name = malloc(prefixalloc), *vname = NULL;
+	nnc_result ret;
+	if(!name) return NNC_R_NOMEM;
+	vname = malloc(vprefixalloc);
+	if(!vname) { ret = NNC_R_NOMEM; goto fail; }
+	size_t off = sprintf(name, "%s%s", dirname, dirname[prefixalloc - 2] == '/' ? "" : "/");
+	size_t voff = sprintf(vname, "%s%s", reldir, reldir[0] ? "/" : "");
+	DIR *d = opendir(name);
+
+	if(!d) return NNC_R_FAIL_OPEN;
+
+	struct dirent *ent;
+	while((ent = readdir(d)))
+	{
+		if(strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0)
+			continue;
+
+		nlen = strlen(ent->d_name) + 1;
+#define DOAPPEND(varprefix) \
+	if(nlen > varprefix##namealloc)  \
+	{ \
+		char *nptr = realloc(varprefix##name, varprefix##prefixalloc + nlen); \
+		varprefix##namealloc = nlen; \
+		if(!nptr) \
+		{ \
+			ret = NNC_R_NOMEM; \
+			goto fail; \
+		} \
+		varprefix##name = nptr; \
+	} \
+	memcpy(varprefix##name + varprefix##off, ent->d_name, nlen)
+
+		DOAPPEND(   );
+		DOAPPEND( v );
+#undef DOAPPEND
+
+		/* d_type should probably be made optional... they are glibc extensions after all */
+		if(ent->d_type == DT_DIR)
+		{
+			TRYLBL(nnc_vfs_add_dir(vfs, vname), fail);
+			TRYLBL(nnc_vfs_link_directory_impl(vfs, name, vname), fail);
+		}
+		else if(ent->d_type == DT_REG)
+		{
+			TRYLBL(nnc_vfs_add(vfs, vname, NNC_VFS_FILE(name)), fail);
+		}
+	}
+
+fail:
+	free(name);
+	free(vname);
+	closedir(d);
+	return ret;
+}
+#else
+static nnc_result nnc_vfs_link_directory_impl(nnc_vfs *vfs, const char *dirname, const char *ndir)
+{
+	(void) vfs;
+	(void) dirname;
+	(void) ndir;
+	return NNC_R_UNSUPPORTED;
+}
+#endif
+
+nnc_result nnc_vfs_link_directory(nnc_vfs *vfs, const char *dirname, const char *prefix)
+{
+	return nnc_vfs_link_directory_impl(vfs, dirname, prefix ? prefix : "");
+}
+
+struct nnc_filegen_data {
+	char realname[1]; /* in reality this element is larger than 1, blame GCC complaining about the struct not having named members */
+};
+
+static nnc_result nnc_filegen_reader_from_node(nnc_rstream **out_stream, void *udata)
+{
+	struct nnc_filegen_data *data = (struct nnc_filegen_data *) udata;
+
+	struct nnc_file *f = nnc_vfs_generator_allocate_reader(nnc_file);
+	if(!f) return NNC_R_NOMEM;
+
+	*out_stream = (nnc_rstream *) f;
+	return nnc_file_open(f, data->realname);
+}
+
+static nnc_result nnc_filegen_init_file_node(void **out_udata, va_list params)
+{
+	const char *fname = va_arg(params, const char *);
+	struct nnc_filegen_data	*udata = (struct nnc_filegen_data *) nnc_strdup(fname);
+	if(!udata) return NNC_R_NOMEM;
+	*out_udata = udata;
+	return NNC_R_OK;
+}
+
+static void nnc_filegen_delete_file_node(void *udata)
+{
+	free(udata);
+}
+
+static size_t nnc_filegen_size(void *udata)
+{
+	struct nnc_filegen_data *data = (struct nnc_filegen_data *) udata;
+
+	(void) data;
+
+	return 0;
+}
+
+const nnc_vfs_generator nnc__internal_vfs_generator_file = {
+	.reader_from_node = nnc_filegen_reader_from_node,
+	.init_file_node = nnc_filegen_init_file_node,
+	.delete_file_node = nnc_filegen_delete_file_node,
+	.size = nnc_filegen_size,
+};
+
+static nnc_result nnc_sgen_reader_from_node(nnc_rstream **out_stream, void *udata)
+{
+	nnc_rstream *rs = (nnc_rstream *) udata;
+	/* XXX: Should we seek to 0 here? */
+	*out_stream = rs;
+	return NNC_R_OK;
+}
+
+static nnc_result nnc_sgen_init_file_node(void **out_udata, va_list params)
+{
+	nnc_rstream *rs = va_arg(params, nnc_rstream *);
+	*out_udata = rs;
+	return NNC_R_OK;
+}
+
+static size_t nnc_sgen_size(void *udata)
+{
+	nnc_rstream *rs = (nnc_rstream *) udata;
+	return NNC_RS_PCALL0(rs, size);
+}
+
+const nnc_vfs_generator nnc__internal_vfs_generator_reader = {
+	.reader_from_node = nnc_sgen_reader_from_node,
+	.init_file_node = nnc_sgen_init_file_node,
+	.delete_file_node = NULL,
+	.size = nnc_sgen_size,
+};
+
 //
 
 nnc_result nnc_copy(nnc_rstream *from, nnc_wstream *to)
@@ -227,7 +475,6 @@ nnc_result nnc_copy(nnc_rstream *from, nnc_wstream *to)
 	TRY(NNC_RS_PCALL(from, seek_abs, 0));
 
 	while(left != 0)
-
 	{
 		next = MIN(left, BLOCK_SZ);
 		TRY(NNC_RS_PCALL(from, read, block, next, &actual));

@@ -121,7 +121,6 @@ bool nnc_crypto_hasheq(nnc_sha256_hash a, nnc_sha256_hash b);
 nnc_result nnc_crypto_sha256(const nnc_u8 *buf, nnc_sha256_hash digest, nnc_u32 size);
 
 /** \brief      Sets default keys in a keyset.
- *              Keys set: kx_ncch1, kx_ncchA, kx_ncchB.
  *  \param ks   Output keyset.
  *  \param dev  Whether or not to use a developer set.
  */
@@ -224,7 +223,8 @@ nnc_result nnc_get_ncch_iv(struct nnc_ncch_header *ncch, nnc_u8 for_section,
  *  \param iv     Initial counter.
  *  \warning      As this stream does not keep it's own offsets, do not open one multiple
  *                times to one substream.
- *  \note         All operations to this stream should be aligned to 0x10 bytes.
+ *  \note         For optimal usage align all operations to 0x10 bytes,
+ *                however unaligned reads are possible as well.
  *  \note         Calling close on this stream doesn't close the substream.
  *  \returns
  *  \p NNC_R_NOMEM => Failed to allocate AES-CTR context.
@@ -239,7 +239,8 @@ nnc_result nnc_aes_ctr_open(nnc_aes_ctr *self, nnc_rstream *child, nnc_u128 *key
  *  \param iv     IV.
  *  \warning      As this stream does not keep it's own offsets, do not open one multiple
  *                times to one substream.
- *  \note         All operations to this stream should be aligned to 0x10 bytes.
+ *  \note         For optimal usage align all operations to 0x10 bytes,
+ *                however unaligned reads are possible as well.
  *  \note         Calling close on this stream doesn't close the substream.
  *  \returns
  *  \p NNC_R_NOMEM => Failed to allocate AES-CBC context.

@@ -49,6 +49,13 @@ nnc_i8 nnc_find_exefs_file_index(const char *name, nnc_exefs_file_header *header
  */
 void nnc_exefs_subview(nnc_rstream *rs, nnc_subview *sv, nnc_exefs_file_header *header);
 
+/** \brief      Write an ExeFS.
+ *  \param vfs  VFS to use as file source.
+ *  \param ws   Stream to write to.
+ *  \note       The VFS may not contain any directories and there are at the maximum \ref NNC_EXEFS_MAX_FILES files allowed.
+ */
+nnc_result nnc_write_exefs(nnc_vfs *vfs, nnc_wstream *ws);
+
 NNC_END
 #endif
 

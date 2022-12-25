@@ -2,6 +2,7 @@
 #include <nnc/stream.h>
 #include <nnc/base.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 #include "./internal.h"
 
@@ -132,11 +133,11 @@ const char *nnc_strerror(nnc_result res)
 	return NULL;
 }
 
-#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
+#if NNC_PLATFORM_UNIX
 	#include <unistd.h>
 	#define UNIX_LIKE
 	#define can_read(f) access(f, R_OK) == 0
-#elif defined(_WIN32)
+#elif NNC_PLATFORM_UNIX
 	#include <io.h>
 	#define can_read(f) _access_s(f, 4) == 0
 #endif
@@ -153,7 +154,7 @@ bool nnc_find_support_file(const char *name, char *output)
 #define CHECKE(path) CHECK_BASE("%s/%s/%s", envptr, path, name)
 #define CHECK(path) CHECK_BASE("%s/%s", path, name)
 
-#ifdef UNIX_LIKE
+#ifdef NNC_PLATFORM_UNIX
 	if((envptr = getenv("HOME")))
 	{
 		CHECKE(".config/3ds");
@@ -161,7 +162,7 @@ bool nnc_find_support_file(const char *name, char *output)
 		CHECKE(".3ds");
 	}
 	CHECK("/usr/share/3ds");
-#elif defined(_WIN32)
+#elif NNC_PLATFORM_WINDOWS
 	if((envptr = getenv("USERPROFILE")))
 	{
 		CHECKE("3ds");
@@ -181,5 +182,14 @@ bool nnc_find_support_file(const char *name, char *output)
 #undef CHECK_BASE
 #undef CHECKE
 #undef CHECK
+}
+
+char *nnc_strdup(const char *s)
+{
+	size_t len = strlen(s) + 1;
+	char *ret = malloc(len);
+	if(!ret) return NULL;
+	memcpy(ret, s, len);
+	return ret;
 }
 

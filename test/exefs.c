@@ -50,7 +50,9 @@ int extract_exefs_main(int argc, char *argv[])
 			fname = "logo.darc.lz";
 		else
 		{
+			fflush(stdout);
 			fprintf(stderr, ". Unknown file in exefs '%s', bad file?", headers[i].name);
+			fflush(stderr);
 			fname = headers[i].name;
 		}
 
@@ -68,6 +70,28 @@ int extract_exefs_main(int argc, char *argv[])
 	}
 
 	NNC_RS_CALL0(f, close);
+	return 0;
+}
+
+int build_exefs_main(int argc, char *argv[])
+{
+	if(argc != 3)
+		die("usage: %s <directory-name> <output-exefs-file>", argv[0]);
+
+	const char *dir = argv[1];
+	const char *out = argv[2];
+
+	nnc_vfs vfs;
+	nnc_vfs_init(&vfs, 0);
+	nnc_vfs_link_directory(&vfs, dir);
+
+	nnc_wfile outf;
+	nnc_wfile_open(&outf, out);
+
+	nnc_write_exefs(&vfs, NNC_WSP(&outf));
+
+	nnc_vfs_free(&vfs);
+
 	return 0;
 }
 

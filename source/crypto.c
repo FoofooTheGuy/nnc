@@ -73,7 +73,7 @@ out:
 
 result nnc_crypto_sha256_stream(nnc_rstream *rs, nnc_sha256_hash digest)
 {
-	return nnc_crypto_sha256_part(rs, digest, NNC_RS_PCALL0(rs, size));
+	return nnc_crypto_sha256_part(rs, digest, NNC_RS_PCALL0(rs, size) - NNC_RS_PCALL0(rs, tell));
 }
 
 bool nnc_crypto_hasheq(nnc_sha256_hash a, nnc_sha256_hash b)
@@ -385,7 +385,7 @@ static result do_crypto_seek(struct generic_crypto_obj *self, u32 pos, crypto_re
 {
 	u32 cpos = NNC_RS_PCALL0(self->child, tell);
 	nnc_result ret;
-	/* i doubt this will happen but it's here anyways
+	/* i doubt this will happen but it's here anyway
 	 * to save a bit of time. */
 	if(cpos == pos) return NNC_R_OK;
 	if(pos % 0x10 == 0)

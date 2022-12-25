@@ -50,7 +50,7 @@ typedef struct nnc_romfs_info {
 			nnc_u64 size;     ///< Size of file data.
 		} f; ///< File information.
 	} u; ///< Information union, d for type == DIR, f for type == FILE.
-	nnc_u32 filename_length; ///< Length of filename.
+	nnc_u32 filename_length; ///< Length of filename (without the NULL terminator).
 	const nnc_u16 *filename; ///< Filename (utf16).
 } nnc_romfs_info;
 
