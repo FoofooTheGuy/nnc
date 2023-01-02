@@ -289,6 +289,35 @@ struct nnc_ticket;
  */
 nnc_result nnc_decrypt_tkey(struct nnc_ticket *tik, nnc_keyset *ks, nnc_u8 decrypted[0x10]);
 
+/** \brief     Sets a default seeddb. \see nnc_get_default_seeddb.
+ *  \param sdb The seeddb to set.
+ *  \returns   A pointer to the old default seeddb.
+ *  \warning   \p sdb must remain alive until this function is called with another seeddb.
+ *  \note      If \p sdb is NULL, an empty seeddb will be set.
+ */
+nnc_seeddb *nnc_set_default_seeddb(struct nnc_seeddb *sdb);
+
+/** \brief   Gets the default seeddb. \see nnc_set_default_seeddb.
+ *  \returns A pointer to the global seeddb.
+ *  \note    This seeddb will always be valid unless \ref nnc_set_default_seeddb was called improperly.
+ */
+nnc_seeddb *nnc_get_default_seeddb(void);
+
+/** \brief       Sets a default keyset. \see nnc_get_default_keyset.
+ *  \param kset  The keyset to set.
+ *  \returns     A pointer to the old default keyset.
+ *  \warning     \p kset must remain alive until this function is called with another keyset.
+ *  \note        If \p kset is NULL, a keyset with retail keys initialized with \ref nnc_keyset_default will be set.
+ *  \note        If \p kset is not yet initialized this function will initialize it with retail keys with \ref nnc_keyset_default.
+ */
+nnc_keyset *nnc_set_default_keyset(struct nnc_keyset *kset);
+
+/** \brief   Gets the default keyset. \see nnc_set_default_keyset.
+ *  \returns A pointer to the default keyset.
+ *  \note    This keyset will always be valid unless \ref nnc_set_default_keyset was called improperly.
+ */
+nnc_keyset *nnc_get_default_keyset(void);
+
 NNC_END
 #endif
 

@@ -1,3 +1,6 @@
+/** \file   stream.h
+ *  \brief  Functions relating to stream io.
+ */
 #ifndef inc_nnc_stream_h
 #define inc_nnc_stream_h
 
@@ -257,5 +260,3 @@ nnc_result nnc_copy(nnc_rstream *from, nnc_wstream *to);
 
 NNC_END
 #endif
-
-

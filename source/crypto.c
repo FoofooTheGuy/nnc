@@ -113,7 +113,7 @@ nnc_result nnc_seeds_seeddb(nnc_rstream *rs, nnc_seeddb *seeddb)
 
 result nnc_scan_seeddb(nnc_seeddb *seeddb)
 {
-	char path[1024 + 1];
+	char path[SUP_FILE_NAME_LEN];
 	if(!find_support_file("seeddb.bin", path))
 		return NNC_R_NOT_FOUND;
 	nnc_file f;
@@ -668,4 +668,38 @@ result nnc_decrypt_tkey(nnc_ticket *tik, nnc_keyset *ks, nnc_u8 decrypted[0x10])
 	mbedtls_aes_free(&ctx);
 	return NNC_R_OK;
 }
+
+static nnc_seeddb nnc_empty_seeddb = {
+	.size    = 0,
+	.entries = NULL,
+};
+static nnc_seeddb *nnc_default_seeddb = &nnc_empty_seeddb;
+
+nnc_seeddb *nnc_set_default_seeddb(nnc_seeddb *sdb)
+{
+	if(!sdb) sdb = &nnc_empty_seeddb;
+	nnc_seeddb *ret = nnc_default_seeddb;
+	nnc_default_seeddb = sdb;
+	return ret;
+}
+
+nnc_seeddb *nnc_get_default_seeddb(void) { return nnc_default_seeddb; }
+
+static nnc_keyset nnc_gkset = {
+	.flags = 0,
+};
+static nnc_keyset *nnc_default_kset = &nnc_gkset;
+
+nnc_keyset *nnc_set_default_keyset(nnc_keyset *kset)
+{
+	if(!kset) kset = &nnc_gkset;
+	/* aka not yet initialized */
+	if(!(kset->flags & TYPE_FIELD))
+		nnc_keyset_default(kset, false);
+	nnc_keyset *ret = nnc_default_kset;
+	nnc_default_kset = kset;
+	return ret;
+}
+
+nnc_keyset *nnc_get_default_keyset(void) { return nnc_default_kset; }
 
