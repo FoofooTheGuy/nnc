@@ -4,6 +4,7 @@
 
 #include <nncpp/stream.hh>
 #include <nncpp/crypto.hh>
+#include <nncpp/romfs.hh>
 #include <nncpp/exefs.hh>
 #include <nncpp/base.hh>
 #include <nncpp/u128.hh>
@@ -48,6 +49,7 @@ namespace nnc
 	class ncch_section final : public c_read_stream<nnc_ncch_section_stream>
 	{ public: using c_read_stream::c_read_stream; };
 
+	class ncch_exefs;
 	class ncch final
 	{
 	public:
@@ -126,6 +128,21 @@ namespace nnc
 		NNCPP__DEFINE_NCCH_SECTION(exheader, nnc_ncch_section_exheader)
 		NNCPP__DEFINE_SUBVIEW_SECTION(plain, nnc_ncch_section_plain)
 		NNCPP__DEFINE_SUBVIEW_SECTION(logo, nnc_ncch_section_logo)
+
+		result romfs_section(romfs& out_romfs)
+		{
+			ncch_section stream;
+			result res = this->romfs_section(stream);
+			if(res != result::ok) return res;
+			return out_romfs.read(stream);
+		}
+
+		/* because we don't know about ncch_exefs yet.... */
+		template <typename T = ncch_exefs>
+		result exefs_section(T& out_exefs)
+		{
+			return out_exefs.read(*this);
+		}
 
 	private:
 		friend class ncch_exefs;
