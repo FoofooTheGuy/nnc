@@ -3,6 +3,7 @@
 #define inc_nnc_nncpp_tmd_hh
 
 #include <nncpp/stream.hh>
+#include <nncpp/crypto.hh>
 #include <nncpp/base.hh>
 #include <nnc/tmd.h>
 

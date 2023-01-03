@@ -3,6 +3,7 @@
 #define inc_nnc_nncpp_romfs_hh
 
 #include <nncpp/base.hh>
+#include <nncpp/utf.hh>
 #include <nnc/romfs.h>
 
 
