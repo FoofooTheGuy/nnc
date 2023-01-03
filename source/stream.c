@@ -222,6 +222,35 @@ void nnc_subview_open(nnc_subview *self, nnc_rstream *child, nnc_u32 off, nnc_u3
 
 /* ...vfs code... */
 
+static char *copy_vname(const char *vname, bool is_dir)
+{
+	char *ret = malloc(strlen(vname) + 1), *retpos;
+	const char *pos, *slash;
+	if(!ret) return NULL;
+	int len;
+	retpos = ret;
+	pos = vname;
+	/* now copy vname path segment per path segment, so that we may skip any double slashes */
+	do {
+		while(*pos == '/')
+			++pos;
+		slash = strchr(pos, '/');
+		if(!slash) slash = pos + strlen(pos);
+		len = slash - pos;
+		memcpy(retpos, pos, len);
+		retpos[len] = '/';
+		retpos += len + 1;
+		pos = slash;
+	} while(*slash);
+
+	/* the final slash should be trimmed instead of just terminated */
+	if(!is_dir && retpos != pos)
+		--retpos;
+	*retpos = '\0';
+
+	return ret;
+}
+
 nnc_result nnc_vfs_init(nnc_vfs *vfs, int initial_size)
 {
 	/* no real rationale for making this 32 other than it looks nice */
@@ -255,9 +284,16 @@ nnc_result nnc_vfs_add(nnc_vfs *vfs, const char *vfilename, const nnc_vfs_genera
 	if(!(node = nnc_vfs_allocate_node(vfs)))
 		return NNC_R_NOMEM;
 
-	node->vname = nnc_strdup(vfilename);
+	node->vname = copy_vname(vfilename, false);
 	node->generator = generator;
 	node->is_dir = 0;
+
+	if(!node->vname)
+	{
+		/* de-allocate the node */
+		--vfs->len;
+		return NNC_R_NOMEM;
+	}
 
 	va_list va;
 	va_start(va, generator);
@@ -276,7 +312,13 @@ nnc_result nnc_vfs_add_dir(nnc_vfs *vfs, const char *vdirname)
 	node->is_dir = 1;
 	node->generator = NULL;
 	node->generator_data = NULL;
-	node->vname = nnc_strdup(vdirname);
+	node->vname = copy_vname(vdirname, true);
+
+	if(!node->vname)
+	{
+		--vfs->len;
+		return NNC_R_NOMEM;
+	}
 
 	return NNC_R_OK;
 }
