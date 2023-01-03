@@ -256,13 +256,10 @@ nnc_result nnc_vfs_init(nnc_vfs *vfs, int initial_size)
 	/* no real rationale for making this 32 other than it looks nice */
 	if(!initial_size) initial_size = 32;
 
-	if(!(vfs->nodes = malloc(initial_size * sizeof(nnc_vfs_node))))
-		return NNC_R_NOMEM;
-
 	vfs->size = initial_size;
 	vfs->len = 0;
 
-	return NNC_R_OK;
+	return (vfs->nodes = malloc(initial_size * sizeof(nnc_vfs_node))) ? NNC_R_OK : NNC_R_NOMEM;
 }
 
 static struct nnc_vfs_node *nnc_vfs_allocate_node(nnc_vfs *vfs)

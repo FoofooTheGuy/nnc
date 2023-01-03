@@ -73,6 +73,10 @@ nnc_u16 nnc_sig_dsize(enum nnc_sigtype sig);
  */
 nnc_result nnc_read_sig(nnc_rstream *rs, nnc_signature *sig);
 
+/** \brief      Write a signature.
+ *  \param sig  The signature to write.
+ *  \param ws   Output stream.
+ */
 nnc_result nnc_write_sig(nnc_signature *sig, nnc_wstream *ws);
 
 /** \brief      Signature type to string

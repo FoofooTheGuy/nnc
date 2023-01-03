@@ -62,9 +62,9 @@ int main(int argc, char *argv[])
 		bool tmd_legit = false, tik_legit = false;
 
 		if((res = nnc_read_cia_header(rs, &cia)) != NNC_R_OK) goto err;
-		if((res = nnc_cia_open_certchain(&cia, rs, &sv)) != NNC_R_OK) goto err;
+		nnc_cia_open_certchain(&cia, rs, &sv);
 		if((res = nnc_read_certchain(NNC_RSP(&sv), &chain, false)) != NNC_R_OK) goto err;
-		if((res = nnc_cia_open_tmd(&cia, rs, &sv)) != NNC_R_OK) goto err;
+		nnc_cia_open_tmd(&cia, rs, &sv);
 		if((res = nnc_read_tmd_header(NNC_RSP(&sv), &tmd)) != NNC_R_OK) goto err;
 		if((res = nnc_tmd_signature_hash(NNC_RSP(&sv), &tmd, digest)) != NNC_R_OK) goto err;
 		if(nnc_verify_signature(&chain, &tmd.sig, digest) == NNC_R_OK) tmd_legit = true;
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 			res = NNC_R_CORRUPT;
 			goto err;
 		}
-		if((res = nnc_cia_open_ticket(&cia, rs, &sv)) != NNC_R_OK) goto err;
+		nnc_cia_open_ticket(&cia, rs, &sv);
 		if((res = nnc_read_ticket(NNC_RSP(&sv), &tik)) != NNC_R_OK) goto err;
 		if((res = nnc_ticket_signature_hash(NNC_RSP(&sv), &tik, digest)) != NNC_R_OK) goto err;
 		if(nnc_verify_signature(&chain, &tik.sig, digest) == NNC_R_OK) tik_legit = true;

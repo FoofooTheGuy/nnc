@@ -9,8 +9,10 @@
 #include <nnc/base.h>
 NNC_BEGIN
 
+/** Bits in a rating that are set to the minimum age. */
+#define NNC_RATING_AGE_BITS 0x1f
 /** Returns the minimum age rating if set and 0 otherwise. */
-#define NNC_RATING_MIN_AGE(a) (((a) & NNC_RATING_ACTIVE) ? ((a) - NNC_RATING_ACTIVE) : 0)
+#define NNC_RATING_MIN_AGE(a) (((a) & NNC_RATING_ACTIVE) ? ((a) & NNC_RATING_AGE_BITS) : 0)
 /** \brief Amount of titles in an SMDH.
  *  \note If you simply want to iterate over all titles in an SMDH
  *        use \ref NNC_TITLE_MAX instead.

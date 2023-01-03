@@ -55,7 +55,7 @@ typedef struct nnc_romfs_info {
 } nnc_romfs_info;
 
 typedef struct nnc_romfs_iterator {
-	nnc_romfs_info *dir;
+	const nnc_romfs_info *dir;
 	nnc_romfs_ctx *ctx;
 	nnc_u32 next;
 	bool in_dir;
@@ -80,7 +80,7 @@ int nnc_romfs_next(nnc_romfs_iterator *it, nnc_romfs_info *ent);
  *              so make sure to not use the \p dir until you are done
  *              with the iterator.
  */
-nnc_romfs_iterator nnc_romfs_mkit(nnc_romfs_ctx *ctx, nnc_romfs_info *dir);
+nnc_romfs_iterator nnc_romfs_mkit(nnc_romfs_ctx *ctx, const nnc_romfs_info *dir);
 
 /** \brief       Looks up information of a path.
  *  \param ctx   Context from \ref nnc_init_romfs.

@@ -25,8 +25,8 @@ result nnc_read_exefs_header(nnc_rstream *rs, nnc_exefs_file_header *headers, nn
 		/* 0x08 */ headers[i].offset = LE32P(&cur[0x8]);
 		/* 0x0C */ headers[i].size = LE32P(&cur[0xC]);
 	}
-	if(i != NNC_EXEFS_MAX_FILES)
-		headers[i].name[0] = '\0';
+	for(int j = i; j != NNC_EXEFS_MAX_FILES; ++j)
+		headers[j].name[0] = '\0';
 
 	for(u8 j = 0; j < i; ++j)
 	{
@@ -44,6 +44,11 @@ i8 nnc_find_exefs_file_index(const char *name, nnc_exefs_file_header *headers)
 {
 	u32 len = strlen(name);
 	if(len > 8) return -1;
+	/* so that the NULL-terminator is compared as well;
+	 *  in the file header our file names are guaranteed to end with a null terminator,
+	 *  also comparing this prevents issues like the name "i" matching the file name "icon",
+	 *  when it should in reality just not match anything at all (assuming the exefs does
+	 *  not contain the file "i") */
 	++len;
 	for(u8 i = 0; i < NNC_EXEFS_MAX_FILES && nnc_exefs_file_in_use(&headers[i]); ++i)
 	{

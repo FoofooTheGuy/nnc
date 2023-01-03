@@ -30,7 +30,7 @@ bool nnc_exefs_file_in_use(nnc_exefs_file_header *fh);
 /** \brief          Read the header of an exefs.
  *  \param rs       Stream to read exefs from.
  *  \param headers  Array of size \ref NNC_EXEFS_MAX_FILES.
- *  \param size     (optional) Amount of used files. Only set if headers is not NULL.
+ *  \param size     (optional) Amount of used files.
  */
 nnc_result nnc_read_exefs_header(nnc_rstream *rs, nnc_exefs_file_header *headers, nnc_u8 *size);
 

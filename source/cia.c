@@ -30,25 +30,22 @@ nnc_result nnc_read_cia_header(nnc_rstream *rs, nnc_cia_header *cia)
 	return NNC_R_OK;
 }
 
-nnc_result nnc_cia_open_certchain(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv)
+void nnc_cia_open_certchain(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv)
 {
 	nnc_u32 offset = HDR_AL;
 	nnc_subview_open(sv, rs, offset, cia->cert_chain_size);
-	return NNC_R_OK;
 }
 
-nnc_result nnc_cia_open_ticket(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv)
+void nnc_cia_open_ticket(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv)
 {
 	nnc_u32 offset = HDR_AL + CALIGN(cia->cert_chain_size);
 	nnc_subview_open(sv, rs, offset, cia->ticket_size);
-	return NNC_R_OK;
 }
 
-nnc_result nnc_cia_open_tmd(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv)
+void nnc_cia_open_tmd(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv)
 {
 	nnc_u32 offset = HDR_AL + CALIGN(cia->cert_chain_size) + CALIGN(cia->ticket_size);
 	nnc_subview_open(sv, rs, offset, cia->tmd_size);
-	return NNC_R_OK;
 }
 
 nnc_result nnc_cia_open_meta(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv)

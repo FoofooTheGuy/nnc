@@ -308,7 +308,7 @@ nnc_seeddb *nnc_get_default_seeddb(void);
  *  \returns     A pointer to the old default keyset.
  *  \warning     \p kset must remain alive until this function is called with another keyset.
  *  \note        If \p kset is NULL, a keyset with retail keys initialized with \ref nnc_keyset_default will be set.
- *  \note        If \p kset is not yet initialized this function will initialize it with retail keys with \ref nnc_keyset_default.
+ *  \note        If \p kset is not yet initialized \ref nnc_get_default_keyset will initialize it with retail keys with \ref nnc_keyset_default.
  */
 nnc_keyset *nnc_set_default_keyset(struct nnc_keyset *kset);
 

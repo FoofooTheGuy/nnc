@@ -241,7 +241,7 @@ int nnc_romfs_next(nnc_romfs_iterator *it, nnc_romfs_info *ent)
 	return 1;
 }
 
-nnc_romfs_iterator nnc_romfs_mkit(nnc_romfs_ctx *ctx, nnc_romfs_info *dir)
+nnc_romfs_iterator nnc_romfs_mkit(nnc_romfs_ctx *ctx, const nnc_romfs_info *dir)
 {
 	nnc_romfs_iterator ret;
 	if(dir->type != NNC_ROMFS_DIR)

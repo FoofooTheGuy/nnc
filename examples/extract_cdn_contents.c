@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 	nnc_u32 i;
 
 	if((res = nnc_read_cia_header(NNC_RSP(&cia_s), &cia)) != NNC_R_OK) goto out;
-	if((res = nnc_cia_open_ticket(&cia, NNC_RSP(&cia_s), &sv)) != NNC_R_OK) goto out;
+	nnc_cia_open_ticket(&cia, NNC_RSP(&cia_s), &sv);
 	if((res = nnc_read_ticket(NNC_RSP(&sv), &tik))) goto out;
 	if((res = nnc_decrypt_tkey(&tik, &kset, tkey))) goto out;
 	if((res = nnc_cia_make_reader(&cia, NNC_RSP(&cia_s), &kset, &reader)) != NNC_R_OK) goto out;
@@ -114,7 +114,7 @@ out1:
 		NNC_RS_CALL0(cs, close);
 	}
 	printf("tmd...");
-	if((res = nnc_cia_open_tmd(&cia, NNC_RSP(&cia_s), &sv)) != NNC_R_OK) goto out;
+	nnc_cia_open_tmd(&cia, NNC_RSP(&cia_s), &sv);
 	sprintf(fname, "%s/tmd.%u", output_dir, tik.title_version);
 	if((res = nnc_wfile_open(&outtmd, fname)) != NNC_R_OK) goto out;
 	res = nnc_copy(NNC_RSP(&sv), NNC_WSP(&outtmd));

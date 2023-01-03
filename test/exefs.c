@@ -81,17 +81,26 @@ int build_exefs_main(int argc, char *argv[])
 	const char *dir = argv[1];
 	const char *out = argv[2];
 
+	int ret = 0;
+	nnc_result res;
+
+	nnc_wfile outf = { NULL, NULL };
 	nnc_vfs vfs;
-	nnc_vfs_init(&vfs, 0);
-	nnc_vfs_link_directory(&vfs, dir);
 
-	nnc_wfile outf;
-	nnc_wfile_open(&outf, out);
+	if((res = nnc_vfs_init(&vfs, 0)) != NNC_R_OK) goto err;
+	if((res = nnc_vfs_link_directory(&vfs, dir, NULL)) != NNC_R_OK) goto err;
 
-	nnc_write_exefs(&vfs, NNC_WSP(&outf));
+	if((res = nnc_wfile_open(&outf, out)) != NNC_R_OK) goto err;
+	if((res = nnc_write_exefs(&vfs, NNC_WSP(&outf))) != NNC_R_OK) goto err;
 
+out:
+	if(outf.funcs != NULL)
+		NNC_WS_CALL0(outf, close);
 	nnc_vfs_free(&vfs);
-
-	return 0;
+	return ret;
+err:
+	fprintf(stderr, "Error while building ExeFS: %s\n", nnc_strerror(res));
+	ret = 1;
+	goto out;
 }
 

@@ -78,28 +78,22 @@ nnc_result nnc_read_cia_header(nnc_rstream *rs, nnc_cia_header *cia);
  *  \param cia  CIA to open certificate chain of.
  *  \param rs   Associated read stream.
  *  \param sv   Output subview.
- *  \returns
- *  This function always returns NNC_R_OK currently.
  */
-nnc_result nnc_cia_open_certchain(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv);
+void nnc_cia_open_certchain(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv);
 
 /** \brief      Open a subview of the ticket section.
  *  \param cia  CIA to open ticket of.
  *  \param rs   Associated read stream.
  *  \param sv   Output subview.
- *  \returns
- *  This function always returns NNC_R_OK currently.
  */
-nnc_result nnc_cia_open_ticket(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv);
+void nnc_cia_open_ticket(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv);
 
 /** \brief      Open a subview of the TMD section.
  *  \param cia  CIA to open TMD of.
  *  \param rs   Associated read stream.
  *  \param sv   Output subview.
- *  \returns
- *  This function always returns NNC_R_OK currently.
  */
-nnc_result nnc_cia_open_tmd(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv);
+void nnc_cia_open_tmd(nnc_cia_header *cia, nnc_rstream *rs, nnc_subview *sv);
 
 /** \brief      Open a subview of the meta section.
  *  \param cia  CIA to open meta of.

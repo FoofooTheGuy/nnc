@@ -693,13 +693,17 @@ static nnc_keyset *nnc_default_kset = &nnc_gkset;
 nnc_keyset *nnc_set_default_keyset(nnc_keyset *kset)
 {
 	if(!kset) kset = &nnc_gkset;
-	/* aka not yet initialized */
-	if(!(kset->flags & TYPE_FIELD))
-		nnc_keyset_default(kset, false);
 	nnc_keyset *ret = nnc_default_kset;
 	nnc_default_kset = kset;
 	return ret;
 }
 
-nnc_keyset *nnc_get_default_keyset(void) { return nnc_default_kset; }
+nnc_keyset *nnc_get_default_keyset(void)
+{
+	/* aka not yet initialized; this check is done here because nnc_set_default_keyset() is
+	 * not done for nnc_gkset */
+	if(!(nnc_default_kset->flags & TYPE_FIELD))
+		nnc_keyset_default(nnc_default_kset, false);
+	return nnc_default_kset;
+}
 

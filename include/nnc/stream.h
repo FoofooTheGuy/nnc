@@ -245,7 +245,7 @@ size_t nnc_vfs_node_size(nnc_vfs_node *node);
  */
 void nnc_vfs_close_node(nnc_rstream *rs);
 
-/* \cond internal */
+/* \cond INTERNAL */
 extern const nnc_vfs_generator nnc__internal_vfs_generator_reader;
 extern const nnc_vfs_generator nnc__internal_vfs_generator_file;
 /* \endcond */
