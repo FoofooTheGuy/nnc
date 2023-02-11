@@ -63,7 +63,7 @@ namespace nnc
 
 	protected:
 		CStreamType stream;
-		bool open_state; /* XXX: Should this be enforced in other actions than close as well? */
+		bool open_state = false; /* XXX: Should this be enforced in other actions than close as well? */
 
 	};
 

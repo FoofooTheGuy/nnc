@@ -54,7 +54,13 @@ namespace nnc
 		};
 
 	public:
-		romfs() { }
+		romfs()
+		{
+			this->ctx.file_hash_tab = nullptr;
+			this->ctx.dir_hash_tab = nullptr;
+			this->ctx.file_meta_data = nullptr;
+			this->ctx.dir_meta_data = nullptr;
+		}
 #if NNCPP_ALLOW_IGNORE_ERRORS
 		romfs(read_stream_like& rs) { this->read(rs); }
 #endif
