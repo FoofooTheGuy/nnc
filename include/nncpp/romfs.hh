@@ -100,7 +100,7 @@ namespace nnc
 
 		result open(info& finfo, subview& out)
 		{
-			return (result) nnc_romfs_open_subview(&this->ctx, out.as_rstream<nnc_subview>(), &finfo.info);
+			return (result) nnc_romfs_open_subview(&this->ctx, out.csubstream(), &finfo.info);
 		}
 
 	private:

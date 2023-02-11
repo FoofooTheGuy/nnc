@@ -13,7 +13,7 @@
 #define NNCPP__DEFINE_CIA_SECTION(name, open_func) \
 	void name##_view(subview& sv) \
 	{ \
-		open_func(&this->hdr, this->rsl->as_rstream(), sv.as_rstream<nnc_subview>()); \
+		open_func(&this->hdr, this->rsl->as_rstream(), sv.csubstream()); \
 		sv.set_open_state(true); \
 	} \
 	subview name##_view() \
@@ -115,7 +115,7 @@ namespace nnc
 		bool has_meta_section() { return this->meta_size() != 0; }
 		result meta_view(subview& sv)
 		{
-			result r = (result) nnc_cia_open_meta(&this->hdr, this->rsl->as_rstream(), sv.as_rstream<nnc_subview>());
+			result r = (result) nnc_cia_open_meta(&this->hdr, this->rsl->as_rstream(), sv.csubstream());
 			if(r == result::ok)
 				sv.set_open_state(true);
 			return r;

@@ -14,7 +14,7 @@
 #define NNCPP__DEFINE_NCCH_SECTION(name, open_func) \
 	result name##_section(ncch_section& sect) \
 	{ \
-		result r = (result) open_func(&this->hdr, this->rsl->as_rstream(), &this->kpair.pair, sect.as_rstream<nnc_ncch_section_stream>()); \
+		result r = (result) open_func(&this->hdr, this->rsl->as_rstream(), &this->kpair.pair, sect.csubstream()); \
 		if(r == result::ok) \
 			sect.set_open_state(true); \
 		return r; \
@@ -184,7 +184,7 @@ namespace nnc
 	protected:
 		result open_file_impl(file_header& hdr, ncch_section& out) override
 		{
-			result res = (result) nnc_ncch_exefs_subview(&this->ncch->hdr, this->ncch->rsl->as_rstream(), &this->ncch->kpair.pair, out.as_rstream<nnc_ncch_section_stream>(), hdr);
+			result res = (result) nnc_ncch_exefs_subview(&this->ncch->hdr, this->ncch->rsl->as_rstream(), &this->ncch->kpair.pair, out.csubstream(), hdr);
 			if(res == result::ok)
 				out.set_open_state(true);
 			return res;

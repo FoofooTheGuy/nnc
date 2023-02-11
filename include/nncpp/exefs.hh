@@ -86,7 +86,7 @@ namespace nnc
 	protected:
 		result open_file_impl(file_header& hdr, subview& out) override
 		{
-			nnc_exefs_subview(this->rsl->as_rstream(), out.as_rstream<nnc_subview>(), hdr);
+			nnc_exefs_subview(this->rsl->as_rstream(), out.csubstream(), hdr);
 			out.set_open_state(true);
 			return result::ok;
 		};

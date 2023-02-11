@@ -214,7 +214,7 @@ namespace nnc
 		{
 			result ret = (result) nnc_aes_ctr_open(&this->stream, child.as_rstream(), key, iv.data());
 			if(ret == result::ok)
-				this->is_open_p = true;
+				this->set_open_state(true);
 			return ret;
 		}
 	};
@@ -235,7 +235,7 @@ namespace nnc
 		{
 			result ret = (result) nnc_aes_cbc_open(&this->stream, child.as_rstream(), key.data(), iv.data());
 			if(ret == result::ok)
-				this->is_open_p = true;
+				this->set_open_state(true);
 			return ret;
 		}
 	};
