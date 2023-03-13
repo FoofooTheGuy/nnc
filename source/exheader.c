@@ -132,6 +132,7 @@ result nnc_read_exheader(nnc_rstream *rs, nnc_exheader *exh)
 
 const char *nnc_exheader_syscall_name(nnc_u8 id)
 {
+	if(id >= 0x7E) return NULL;
 	return exheader_syscall_tab[id];
 }
 
