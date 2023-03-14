@@ -39,9 +39,9 @@
 #define BE32(a) (bswap32(a))
 #define BE64(a) (bswap64(a))
 
-#define LE16(a) (a)
-#define LE32(a) (a)
-#define LE64(a) (a)
+#define LE16(a) ((u16) (a))
+#define LE32(a) ((u32) (a))
+#define LE64(a) ((u64) (a))
 
 #define U16P(a) (* (u16 *) (a))
 #define U32P(a) (* (u32 *) (a))
@@ -60,8 +60,8 @@
 #define TRY(expr) if((ret = ( expr )) != NNC_R_OK) return ret
 #define TRYLBL(expr, label) if((ret = ( expr )) != NNC_R_OK) goto label
 
-#define ALIGN(a, n)      (((a) + ((n) - 1)) & ~((n) - 1))
-#define ALIGN_DOWN(a, n) (((a) & ~((n) - 1)))
+#define ALIGN(a, n)      (((a) + ((n) - 1)) & ~((n) - 1)) /* N.B.: `a' must be a power of 2! */
+#define ALIGN_DOWN(a, n) (((a) & ~((n) - 1)))             /* N.B.: `a' must be a power of 2! */
 
 #ifndef BSWAP_BUILTIN
 nnc_u16 nnc_bswap16(nnc_u16 a);
@@ -91,6 +91,19 @@ void nnc_dumpmem(void *mem, u32 len);
 bool nnc_find_support_file(const char *name, char *output);
 #define strdup nnc_strdup
 char *nnc_strdup(const char *s);
+
+struct dynbuf
+{
+	u8 *buffer;
+	u32 alloc, used;
+};
+
+#define dynbuf_new nnc_dynbuf_new
+nnc_result nnc_dynbuf_new(struct dynbuf *db, u32 initial_size);
+#define dynbuf_push nnc_dynbuf_push
+nnc_result nnc_dynbuf_push(struct dynbuf *db, u8 *data, u32 len);
+#define dynbuf_free nnc_dynbuf_free
+void nnc_dynbuf_free(struct dynbuf *db);
 
 #endif
 

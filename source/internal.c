@@ -186,10 +186,45 @@ bool nnc_find_support_file(const char *name, char *output)
 
 char *nnc_strdup(const char *s)
 {
+	if(!s) return NULL;
 	size_t len = strlen(s) + 1;
 	char *ret = malloc(len);
 	if(!ret) return NULL;
 	memcpy(ret, s, len);
 	return ret;
 }
+
+nnc_result nnc_dynbuf_new(struct dynbuf *db, u32 initial_size)
+{
+	db->buffer = malloc(initial_size);
+	if(!db->buffer)
+		return NNC_R_NOMEM;
+	db->used = 0;
+	db->alloc = initial_size;
+	return NNC_R_OK;
+}
+
+nnc_result nnc_dynbuf_push(struct dynbuf *db, u8 *data, u32 len)
+{
+	u32 new_used = db->used + len;
+//	printf("here, db->used = %u, new_used = %u, db->alloc = %u\n", db->used, new_used, db->alloc);
+	if(new_used >= db->alloc)
+	{
+		u32 new_alloc = db->alloc * 2;
+//		printf("new_alloc: %u\n", new_alloc);
+		u8 *new_buf = realloc(db->buffer, new_alloc);
+		if(!new_buf) return NNC_R_NOMEM;
+		db->buffer = new_buf;
+		db->alloc = new_alloc;
+	}
+	memcpy(&db->buffer[db->used], data, len);
+	db->used = new_used;
+	return NNC_R_OK;
+}
+
+void nnc_dynbuf_free(struct dynbuf *db)
+{
+	free(db->buffer);
+}
+
 

@@ -101,25 +101,29 @@ static void extract_dir(nnc_romfs_ctx *ctx, nnc_romfs_info *info, const char *pa
 		{
 			puts(pathbuf + baselen);
 			FILE *out = fopen(pathbuf, "w");
-			/* slurping the file is a bit inefficient for large
-			 * files but it's fine for this test */
-			nnc_u8 *cbuf = malloc(ent.u.f.size);
-			nnc_subview sv;
-			if(nnc_romfs_open_subview(ctx, &sv, &ent) != NNC_R_OK)
-				goto file_fail;
-			nnc_u32 r;
-			if(NNC_RS_CALL(sv, read, cbuf, ent.u.f.size, &r) != NNC_R_OK)
-				goto file_fail;
-			if(r != ent.u.f.size) goto file_fail;
-			if(fwrite(cbuf, ent.u.f.size, 1, out) != 1)
-				goto file_fail;
-			fclose(out);
-			free(cbuf);
-			continue;
+			/* empty files just need to be touched */
+			if(ent.u.f.size)
+			{
+				/* slurping the file is a bit inefficient for large
+				 * files but it's fine for this test */
+				nnc_u8 *cbuf = malloc(ent.u.f.size);
+				nnc_subview sv;
+				if(nnc_romfs_open_subview(ctx, &sv, &ent) != NNC_R_OK)
+					goto file_fail;
+				nnc_u32 r;
+				if(NNC_RS_CALL(sv, read, cbuf, ent.u.f.size, &r) != NNC_R_OK)
+					goto file_fail;
+				if(r != ent.u.f.size) goto file_fail;
+				if(fwrite(cbuf, ent.u.f.size, 1, out) != 1)
+					goto file_fail;
+				free(cbuf);
+				continue;
 file_fail:
-			fprintf(stderr, "fail: ");
+				fprintf(stderr, "fail: ");
+				fclose(out);
+				free(cbuf);
+			}
 			fclose(out);
-			free(cbuf);
 		}
 	}
 }
@@ -146,6 +150,48 @@ int xromfs_main(int argc, char *argv[])
 	nnc_free_romfs(&ctx);
 
 	NNC_RS_CALL0(f, close);
+	return 0;
+}
+
+int bromfs_main(int argc, char *argv[])
+{
+	if(argc != 3) die("usage: %s <input-directory> <output-file>", argv[0]);
+	const char *input_dir = argv[1];
+	const char *output = argv[2];
+
+	nnc_wfile wf;
+	nnc_vfs vfs;
+
+	nnc_result res;
+
+	if((res = nnc_vfs_init(&vfs)) != NNC_R_OK)
+	{
+		fprintf(stderr, "failed to init VFS: %s\n", nnc_strerror(res));
+		return 1;
+	}
+	if((res = nnc_vfs_link_directory(&vfs.root_directory, input_dir, nnc_vfs_identity_transform, NULL)) != NNC_R_OK)
+	{
+		nnc_vfs_free(&vfs);
+		fprintf(stderr, "failed to link real directory '%s' to VFS: %s\n", input_dir, nnc_strerror(res));
+		return 1;
+	}
+
+	if((res = nnc_wfile_open(&wf, output)) != NNC_R_OK)
+	{
+		nnc_vfs_free(&vfs);
+		fprintf(stderr, "failed to open output file '%s': %s\n", output, nnc_strerror(res));
+		return 1;
+	}
+	res = nnc_write_romfs(&vfs, NNC_WSP(&wf));
+	wf.funcs->close(NNC_WSP(&wf));
+	nnc_vfs_free(&vfs);
+
+	if(res != NNC_R_OK)
+	{
+		fprintf(stderr, "failed to write romfs: %s\n", nnc_strerror(res));
+		return 1;
+	}
+
 	return 0;
 }
 

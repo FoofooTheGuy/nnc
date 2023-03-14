@@ -1,4 +1,5 @@
 
+#include <nnc/crypto.h>
 #include <nnc/romfs.h>
 #include <nnc/utf.h>
 #include <string.h>
@@ -7,6 +8,9 @@
 
 #define INVAL 0xFFFFFFFF /* aka UINT32_MAX */
 #define MAX_PATH 1024    /* no good rationale for this specific limit except it looking nice */
+
+#define MY_BLOCK_SIZE_LOG2 12 /* this parameter may not be changed, ctrtool for example hardcodes 0x1000 */
+#define MY_BLOCK_SIZE      (1 << MY_BLOCK_SIZE_LOG2) /* 2 ** 12 = 0x1000 */
 
 
 result nnc_read_romfs_header(rstream *rs, nnc_romfs_header *romfs)
@@ -26,18 +30,20 @@ result nnc_read_romfs_header(rstream *rs, nnc_romfs_header *romfs)
 	nnc_u32 l3_offset = 0x60 + master_hash_size;
 	l3_offset = ALIGN(l3_offset, block_size);
 
+	/* TODO: More (shallow) ivfc container assertions */
+
 	TRY(read_at_exact(rs, l3_offset, l3_header, sizeof(l3_header)));
 	/* header size should always be 0x28 LE */
 	if(memcmp(l3_header, "\x28\x00\x00\x00", 4) != 0)
 		return NNC_R_CORRUPT;
 
-#define OFLEN_PAIR(st, of) st.offset = ((u64) U32P(&l3_header[of])) + l3_offset; st.length = U32P(&l3_header[of + 0x04])
+#define OFLEN_PAIR(st, of) st.offset = ((u64) LE32P(&l3_header[of])) + l3_offset; st.length = LE32P(&l3_header[of + 0x04])
 	OFLEN_PAIR(romfs->dir_hash, 0x04);
 	OFLEN_PAIR(romfs->dir_meta, 0x0C);
 	OFLEN_PAIR(romfs->file_hash, 0x14);
 	OFLEN_PAIR(romfs->file_meta, 0x1C);
 #undef OFLEN_PAIR
-	romfs->data_offset = ((u64) U32P(&l3_header[0x24])) + l3_offset;
+	romfs->data_offset = ((u64) LE32P(&l3_header[0x24])) + l3_offset;
 
 	return NNC_R_OK;
 }
@@ -62,20 +68,36 @@ static u32 hash_func(u16 *name, u32 len, u32 parent)
 	if((rlen = nnc_utf8_to_utf16(conv, MAX_PATH, (const u8 *) str, len)) >= MAX_PATH) \
 	{ __VA_ARGS__ }
 
-#define DIR_PARENT(buf) LE32P(&(buf)[0x00])
-#define DIR_SIBLING(buf) LE32P(&(buf)[0x04])
-#define DIR_DCHILDREN(buf) LE32P(&(buf)[0x08])
-#define DIR_FCHILDREN(buf) LE32P(&(buf)[0x0C])
-#define DIR_NEXTHASH(buf) LE32P(&(buf)[0x10])
-#define DIR_NAMELEN(buf) LE32P(&(buf)[0x14])
-#define DIR_NAME(buf) ((const u16 *) (&(buf)[0x18]))
+#define DIR_OFF_PARENT     0x00
+#define DIR_OFF_SIBLING    0x04
+#define DIR_OFF_DCHILDREN  0x08
+#define DIR_OFF_FCHILDREN  0x0C
+#define DIR_OFF_NEXTBUCKET 0x10
+#define DIR_OFF_NAMELEN    0x14 /* bytes! */
+#define DIR_OFF_NAME       0x18
+
+#define DIR_PARENT(buf) LE32P(&(buf)[DIR_OFF_PARENT])
+#define DIR_SIBLING(buf) LE32P(&(buf)[DIR_OFF_SIBLING])
+#define DIR_DCHILDREN(buf) LE32P(&(buf)[DIR_OFF_DCHILDREN])
+#define DIR_FCHILDREN(buf) LE32P(&(buf)[DIR_OFF_FCHILDREN])
+#define DIR_NEXTBUCKET(buf) LE32P(&(buf)[DIR_OFF_NEXTBUCKET])
+#define DIR_NAMELEN(buf) LE32P(&(buf)[DIR_OFF_NAMELEN])
+#define DIR_NAME(buf) ((const u16 *) (&(buf)[DIR_OFF_NAME]))
 #define DIR_META(ctx, offset) (ctx->dir_meta_data + offset)
+
+#define FILE_OFF_PARENT     0x00
+#define FILE_OFF_SIBLING    0x04
+#define FILE_OFF_OFFSET     0x08
+#define FILE_OFF_SIZE       0x10
+#define FILE_OFF_NEXTBUCKET 0x18
+#define FILE_OFF_NAMELEN    0x1C
+#define FILE_OFF_NAME       0x20
 
 #define FILE_PARENT(buf) LE32P(&(buf)[0x0])
 #define FILE_SIBLING(buf) LE32P(&(buf)[0x04])
 #define FILE_OFFSET(buf) LE64P(&(buf)[0x08])
 #define FILE_SIZE(buf) LE64P(&(buf)[0x10])
-#define FILE_NEXTHASH(buf) LE32P(&(buf)[0x18])
+#define FILE_NEXTBUCKET(buf) LE32P(&(buf)[0x18])
 #define FILE_NAMELEN(buf) LE32P(&(buf)[0x1C])
 #define FILE_NAME(buf) ((const u16 *) (&(buf)[0x20]))
 #define FILE_META(ctx, offset) (ctx->file_meta_data + offset)
@@ -96,7 +118,7 @@ static u32 get_dir_single_offset(nnc_romfs_ctx *ctx, const char *path, u32 len, 
 		namelen = DIR_NAMELEN(dir);
 		if(namelen != rlen * 2 || memcmp(DIR_NAME(dir), conv, namelen) != 0)
 		{
-			offset = DIR_NEXTHASH(dir);
+			offset = DIR_NEXTBUCKET(dir);
 			continue;
 		}
 		return offset;
@@ -122,7 +144,7 @@ static u32 get_file_single_offset(nnc_romfs_ctx *ctx, const char *path, u32 len,
 		namelen = FILE_NAMELEN(file);
 		if(namelen != rlen * 2 || memcmp(FILE_NAME(file), conv, namelen) != 0)
 		{
-			offset = FILE_NEXTHASH(file);
+			offset = FILE_NEXTBUCKET(file);
 			continue;
 		}
 		return offset;
@@ -316,3 +338,347 @@ void nnc_free_romfs(nnc_romfs_ctx *ctx)
 	free(ctx->dir_hash_tab);
 }
 
+static bool nnc_is_composite(u32 x)
+{
+	/* if x is divisable by a "known" prime, it is a composite,
+	 * this algorithm is obviously bad but it's what Nintendo uses so we'll roll with it */
+	return
+		   x % 2  == 0
+		|| x % 3  == 0
+		|| x % 5  == 0
+		|| x % 7  == 0
+		|| x % 11 == 0
+		|| x % 13 == 0
+		|| x % 17 == 0;
+}
+
+static u32 nnc_next_prime(u32 x)
+{
+	u32 ret = x;
+	while(nnc_is_composite(ret))
+		++ret;
+	return ret;
+}
+
+/* N.B.: the algorithm used in AM is slightly different, but this will do */
+static u32 nnc_romfs_table_length(u32 entries)
+{
+	if(entries <= 3)       return 3;
+	else if(entries <= 19) return entries | 1; /* quite mysterious, does not return a prime for entries one_of {8,9,14,15} */
+	else                   return nnc_next_prime(entries);
+}
+
+/* this struct is used for saving the "stack" in the functions for creating the
+ * hash table structures */
+struct romfs_writer_ctx
+{
+	u32          *dir_hash, *file_hash;
+	struct dynbuf dir_meta,  file_meta;
+	u16 *utfc_buffer;
+	u32 utfc_buffer_len; /* avail */
+	int utfc_units; /* used */
+	u32 dir_hashtab_len;
+	u32 file_hashtab_len;
+	/* state */
+	u64 current_file_data_offset; /* incremented as we go */
+};
+
+static result nnc_romfs_convert_to_utf16(struct romfs_writer_ctx *ctx, const char *utf8)
+{
+	size_t len = strlen(utf8);
+	/* +4 because strings should be aligned by 4 and i'm lazy */
+	size_t should_alloc = 4 * len + 4;
+	if(should_alloc > ctx->utfc_buffer_len)
+	{
+		u16 *nbuf = realloc(ctx->utfc_buffer, should_alloc);
+		if(!nbuf) return NNC_R_NOMEM;
+		ctx->utfc_buffer_len = should_alloc;
+		ctx->utfc_buffer = nbuf;
+	}
+	int units = nnc_utf8_to_utf16(ctx->utfc_buffer, should_alloc, (const u8 *) utf8, len);
+	/* assert(units > 0 && units < should_alloc) */
+	memset(&ctx->utfc_buffer[units], '\0', 4);
+	ctx->utfc_units = units;
+	return NNC_R_OK;
+}
+
+static inline void nnc_romfs_add_to_hash_to_offset_table(struct romfs_writer_ctx *ctx, u32 parent_offset, u32 offset, u32 *hash_table, u32 hashtablen, u8 *meta_table, u32 next_bucket_offset)
+{
+	u32 index = hash_func(ctx->utfc_buffer, ctx->utfc_units, parent_offset) % hashtablen;
+	u32 initial_offset = hash_table[index];
+	if(initial_offset == INVAL)
+		hash_table[index] = offset;
+	else
+	{
+		u32 coffset, noffset = initial_offset;
+		/* we have to walk the linked list and insert our offset at the back */
+		do {
+			coffset = noffset;
+			noffset = LE32P(meta_table + coffset + next_bucket_offset);
+		} while(noffset != INVAL);
+		/* we can now write our offset in coffset's NEXTBUCKET field */
+		U32P(meta_table + coffset + next_bucket_offset) = LE32(offset);
+	}
+}
+
+static inline void nnc_romfs_add_to_parent_directory(struct romfs_writer_ctx *ctx, u32 parent_offset, u32 offset, u8 *meta_table, u32 children_offset, u32 next_sibling_offset)
+{
+	/* dir meta is hardcoded since we should always add to the directory metadata obviously */
+	u32 parent_child_offset = LE32P(ctx->dir_meta.buffer + parent_offset + children_offset);
+	if(parent_child_offset == INVAL)
+		U32P(ctx->dir_meta.buffer + parent_offset + children_offset) = LE32(offset);
+	else
+	{
+		/* we need to put ourselves at the end of the siblings list of the first child */
+		u32 coffset, noffset = parent_child_offset;
+		do {
+			coffset = noffset;
+			/* however here we should use the meta table, since the sibling pointer
+			 * is stored in the appropriate meta table */
+			noffset = LE32P(meta_table + coffset + next_sibling_offset);
+		} while(noffset != INVAL);
+		U32P(meta_table + coffset + next_sibling_offset) = LE32(offset);
+	}
+}
+
+static result nnc_romfs_write_directory(struct romfs_writer_ctx *ctx, const char *vdirname, u32 parent_offset, u32 *new_parent_offset)
+{
+	nnc_result ret = nnc_romfs_convert_to_utf16(ctx, vdirname ? vdirname : "");
+	if(ret != NNC_R_OK) return ret;
+	u32 actual_string_length = ctx->utfc_units * 2;
+
+	u32 meta_offset = ctx->dir_meta.used;
+	nnc_romfs_add_to_hash_to_offset_table(ctx, parent_offset, meta_offset, ctx->dir_hash, ctx->dir_hashtab_len, ctx->dir_meta.buffer, DIR_OFF_NEXTBUCKET);
+
+	u8 mbuf[DIR_OFF_NAMELEN + 4];
+
+	U32P(&mbuf[DIR_OFF_PARENT]) = LE32(parent_offset);
+	U32P(&mbuf[DIR_OFF_SIBLING]) = LE32(INVAL); /* initialize to no next sibling */
+	U32P(&mbuf[DIR_OFF_DCHILDREN]) = LE32(INVAL);
+	U32P(&mbuf[DIR_OFF_FCHILDREN]) = LE32(INVAL);
+	U32P(&mbuf[DIR_OFF_NEXTBUCKET]) = LE32(INVAL);
+	U32P(&mbuf[DIR_OFF_NAMELEN]) = LE32(actual_string_length);
+
+	TRY(dynbuf_push(&ctx->dir_meta, mbuf, DIR_OFF_NAMELEN + 4));
+	TRY(dynbuf_push(&ctx->dir_meta, (u8 *) ctx->utfc_buffer, ALIGN(actual_string_length, 4)));
+
+	/* we have to add ourselves to some lists! */
+	if(vdirname) /* can't add to the root */
+		nnc_romfs_add_to_parent_directory(ctx, parent_offset, meta_offset, ctx->dir_meta.buffer, DIR_OFF_DCHILDREN, DIR_OFF_SIBLING);
+
+	*new_parent_offset = meta_offset;
+
+	return NNC_R_OK;
+}
+
+static result nnc_romfs_write_file_meta(struct romfs_writer_ctx *ctx, nnc_vfs_file_node *node, u32 parent_offset)
+{
+	nnc_result ret = nnc_romfs_convert_to_utf16(ctx, node->vname);
+	if(ret != NNC_R_OK) return ret;
+	u32 actual_string_length = ctx->utfc_units * 2;
+
+	u32 meta_offset = ctx->file_meta.used;
+	nnc_romfs_add_to_hash_to_offset_table(ctx, parent_offset, meta_offset, ctx->file_hash, ctx->file_hashtab_len, ctx->file_meta.buffer, FILE_OFF_NEXTBUCKET);
+
+	u8 mbuf[FILE_OFF_NAMELEN + 4];
+
+	u64 filesize = nnc_vfs_node_size(node);
+
+	U32P(&mbuf[FILE_OFF_PARENT]) = LE32(parent_offset);
+	U32P(&mbuf[FILE_OFF_SIBLING]) = LE32(INVAL); /* initialize to invalid since we do not know this yet */
+	U64P(&mbuf[FILE_OFF_OFFSET]) = LE64(ctx->current_file_data_offset);
+	U64P(&mbuf[FILE_OFF_SIZE]) = LE64(filesize);
+	U32P(&mbuf[FILE_OFF_NEXTBUCKET]) = LE32(INVAL);
+	U32P(&mbuf[FILE_OFF_NAMELEN]) = LE32(actual_string_length);
+
+	TRY(dynbuf_push(&ctx->file_meta, mbuf, FILE_OFF_NAMELEN + 4));
+	TRY(dynbuf_push(&ctx->file_meta, (u8 *) ctx->utfc_buffer, ALIGN(actual_string_length, 4)));
+
+	/* we now need to add ourselves to the directory */
+	nnc_romfs_add_to_parent_directory(ctx, parent_offset, meta_offset, ctx->file_meta.buffer, DIR_OFF_FCHILDREN, FILE_OFF_SIBLING);
+
+	ctx->current_file_data_offset += filesize;
+	ctx->current_file_data_offset = ALIGN(ctx->current_file_data_offset, 16);
+
+	return NNC_R_OK;
+}
+
+static result nnc_romfs_write_meta(struct romfs_writer_ctx *ctx, nnc_vfs_directory_node *dir, u32 parent_offset)
+{
+	nnc_vfs_directory_node *ndir;
+	u32 new_parent_offset;
+	result ret;
+	for(unsigned i = 0; i < dir->filecount; ++i)
+		TRY(nnc_romfs_write_file_meta(ctx, &dir->file_children[i], parent_offset));
+	for(unsigned i = 0; i < dir->dircount; ++i)
+	{
+		ndir = &dir->directory_children[i];
+		/* first write this directory */
+		TRY(nnc_romfs_write_directory(ctx, ndir->vname, parent_offset, &new_parent_offset));
+		/* and then recurse further into this directory */
+		TRY(nnc_romfs_write_meta(ctx, ndir, new_parent_offset));
+	}
+	return NNC_R_OK;
+}
+
+static result nnc_romfs_write_file_data(nnc_wstream *ws, nnc_vfs_directory_node *dir)
+{
+	u32 copied, padding;
+	result ret;
+
+	/* write all files... */
+	for(unsigned i = 0; i < dir->filecount; ++i)
+	{
+		nnc_vfs_stream *stream;
+		TRY(nnc_vfs_open_node(&dir->file_children[i], &stream));
+		ret = nnc_copy(stream, ws, &copied);
+		nnc_vfs_close_node(stream);
+		if(ret != NNC_R_OK)
+			return ret;
+		padding = ALIGN(copied, 16) - copied;
+		NNC_WS_PCALL(ws, pad, padding);
+	}
+	/* and recurse into directories */
+	for(unsigned i = 0; i < dir->dircount; ++i)
+		TRY(nnc_romfs_write_file_data(ws, &dir->directory_children[i]));
+
+	return NNC_R_OK;
+}
+
+result nnc_write_romfs(nnc_vfs *vfs, nnc_wstream *ws)
+{
+	nnc_result ret = NNC_R_OK;
+
+	/* first we start building the metadata & offset by hash lookup tables for both files and directories */
+
+	/* dir count starts at one due to the root dir / */
+	struct romfs_writer_ctx ctx = { NULL, NULL, {NULL}, {NULL}, NULL, 0, 0, 0, 0, 0 };
+
+	ctx.dir_hashtab_len = nnc_romfs_table_length(vfs->totaldirs);
+	ctx.file_hashtab_len = nnc_romfs_table_length(vfs->totalfiles);
+
+	u32 file_hashtab_size = ctx.file_hashtab_len * sizeof(u32);
+	u32 dir_hashtab_size = ctx.dir_hashtab_len * sizeof(u32);
+
+	TRY(dynbuf_new(&ctx.dir_meta, 8192));
+	TRYLBL(dynbuf_new(&ctx.file_meta, 8192), out);
+
+	ctx.file_hash = malloc(file_hashtab_size);
+	ctx.dir_hash = malloc(dir_hashtab_size);
+	if(!ctx.file_hash || !ctx.dir_hash)
+		goto out;
+
+	memset(ctx.file_hash, 0xFF, file_hashtab_size);
+	memset(ctx.dir_hash, 0xFF, dir_hashtab_size);
+
+	ctx.utfc_buffer = malloc(128);
+	if(!ctx.utfc_buffer)
+	{
+		ret = NNC_R_NOMEM;
+		goto out;
+	}
+	ctx.utfc_buffer_len = 128;
+
+	/* first we have to write the root directory */
+	u32 root_directory_offset;
+	TRYLBL(nnc_romfs_write_directory(&ctx, NULL, 0, &root_directory_offset), out);
+
+	/* first walk to add all metadata, and later we walk again but to add all file data */
+	TRYLBL(nnc_romfs_write_meta(&ctx, &vfs->root_directory, root_directory_offset), out);
+
+	/* level 3 is the actual "RomFS" header, first we calculate the size */
+	u64 l3_size = 0x28 + dir_hashtab_size + ctx.dir_meta.used + file_hashtab_size + ctx.file_meta.used + ctx.current_file_data_offset;
+	/* level 2 contains l3_size/block_size hashes, so the size is (l3_size/block_size)*hash_size, the hash used is sha256 (0x20 bytes)
+	 * note that it itself is also aligned to the block size of the level above (l1), which in our implementation is just the same */
+	u64 l2_size = (ALIGN(l3_size, MY_BLOCK_SIZE) / MY_BLOCK_SIZE) * sizeof(nnc_sha256_hash);
+	/* same thing going on here */
+	u64 l1_size = (ALIGN(l2_size, MY_BLOCK_SIZE) / MY_BLOCK_SIZE) * sizeof(nnc_sha256_hash);
+	/* and here too */
+	u32 l0_size = (ALIGN(l1_size, MY_BLOCK_SIZE) / MY_BLOCK_SIZE) * sizeof(nnc_sha256_hash);
+
+	u64 l1_offset = 0;                                         /* logical offset: directly after the ivfc header */
+	u64 l2_offset = ALIGN(l1_offset + l1_size, MY_BLOCK_SIZE); /* all packed after eachother */
+	u64 l3_offset = ALIGN(l2_offset + l2_size, MY_BLOCK_SIZE); /* same here */
+
+	/* and finally we can build the header */
+	u8 ivfc_header_buf[0x60];
+
+	/* "Level 0" header */
+	memcpy(&ivfc_header_buf[0x00], "IVFC", 4);
+	U32P(&ivfc_header_buf[0x04]) = LE32(0x10000); /* also known as "id" */
+	U32P(&ivfc_header_buf[0x08]) = LE32(l0_size); /* also known as the "master hash", although there may be more than one */
+	/* Level 1 */
+	U64P(&ivfc_header_buf[0x0C]) = LE64(l1_offset);          /* logical offset  */
+	U64P(&ivfc_header_buf[0x14]) = LE64(l1_size);            /* level 1 size    */
+	U32P(&ivfc_header_buf[0x1C]) = LE32(MY_BLOCK_SIZE_LOG2); /* block size log2 */
+	U32P(&ivfc_header_buf[0x20]) = 0;                        /* reserved        */
+	/* Level 2 */
+	U64P(&ivfc_header_buf[0x24]) = LE64(l2_offset);          /* logical offset  */
+	U64P(&ivfc_header_buf[0x2C]) = LE64(l2_size);            /* level 1 size    */
+	U32P(&ivfc_header_buf[0x34]) = LE32(MY_BLOCK_SIZE_LOG2); /* block size log2 */
+	U32P(&ivfc_header_buf[0x38]) = 0;                        /* reserved        */
+	/* Level 3 */
+	U64P(&ivfc_header_buf[0x3C]) = LE64(l3_offset);          /* logical offset  */
+	U64P(&ivfc_header_buf[0x44]) = LE64(l3_size);            /* level 1 size    */
+	U32P(&ivfc_header_buf[0x4C]) = LE32(MY_BLOCK_SIZE_LOG2); /* block size log2 */
+	U32P(&ivfc_header_buf[0x50]) = 0;                        /* reserved        */
+	/* Footer of the header */
+	U32P(&ivfc_header_buf[0x54]) = LE32(0x5C);               /* here goes the size of the IVFC header (without the alignment) */
+	/* the rest is padding until 0x60 (two dwords) */
+	memset(&ivfc_header_buf[0x58], 0x00, sizeof(ivfc_header_buf) - 0x58);
+
+	TRYLBL(NNC_WS_PCALL(ws, write, ivfc_header_buf, sizeof(ivfc_header_buf)), out);
+
+	/* now the actual layout, the logical offset is not indicative of it
+	 * it goes like this:
+	 *  lv0  - hashes of ??? (master hash)
+	 *  lv3  - romfs content
+	 *  lv1  - hashes of lv3
+	 *  lv2  - hashes of lv1 */
+
+	/* from here on we work with real offsets */
+
+#define l0_offset 0x60
+	l3_offset = ALIGN(l0_offset + l0_size, MY_BLOCK_SIZE);
+
+	/* for now, let's just 0 everything until l3 */
+
+	TRYLBL(NNC_WS_PCALL(ws, pad, l3_offset - 0x60), out);
+
+	u8 romfs_header_buf[0x28];
+
+	U32P(&romfs_header_buf[0x00]) = LE32(sizeof(romfs_header_buf)); /* header size */
+	U32P(&romfs_header_buf[0x04]) = LE32(sizeof(romfs_header_buf)); /* offset/size pairs no w*/
+	U32P(&romfs_header_buf[0x08]) = LE32(dir_hashtab_size);
+	U32P(&romfs_header_buf[0x0C]) = LE32(sizeof(romfs_header_buf) + dir_hashtab_size);
+	U32P(&romfs_header_buf[0x10]) = LE32(ctx.dir_meta.used);
+	U32P(&romfs_header_buf[0x14]) = LE32(sizeof(romfs_header_buf) + dir_hashtab_size + ctx.dir_meta.used);
+	U32P(&romfs_header_buf[0x18]) = LE32(file_hashtab_size);
+	U32P(&romfs_header_buf[0x1C]) = LE32(sizeof(romfs_header_buf) + dir_hashtab_size + ctx.dir_meta.used + file_hashtab_size);
+	U32P(&romfs_header_buf[0x20]) = LE32(ctx.file_meta.used);
+	U32P(&romfs_header_buf[0x24]) = LE32(sizeof(romfs_header_buf) + dir_hashtab_size + ctx.dir_meta.used + file_hashtab_size + ctx.file_meta.used);
+
+	TRYLBL(NNC_WS_PCALL(ws, write, romfs_header_buf, sizeof(romfs_header_buf)), out);
+
+	/* now we can dump our tables and afterwards ... */
+
+	TRYLBL(NNC_WS_PCALL(ws, write, (u8 *) ctx.dir_hash, dir_hashtab_size), out);
+	TRYLBL(NNC_WS_PCALL(ws, write, (u8 *) ctx.dir_meta.buffer, ctx.dir_meta.used), out);
+	TRYLBL(NNC_WS_PCALL(ws, write, (u8 *) ctx.file_hash, file_hashtab_size), out);
+	TRYLBL(NNC_WS_PCALL(ws, write, (u8 *) ctx.file_meta.buffer, ctx.file_meta.used), out);
+
+	/* and now the long-awaited files */
+
+	TRYLBL(nnc_romfs_write_file_data(NNC_WSP(ws), &vfs->root_directory), out);
+
+	/* TODO: Add l0, l1 and l2 hashing in the IVFC tree */
+
+out:
+	nnc_dynbuf_free(&ctx.file_meta);
+	nnc_dynbuf_free(&ctx.dir_meta);
+	free(ctx.utfc_buffer);
+	free(ctx.file_hash);
+	free(ctx.dir_hash);
+
+	return ret;
+}
