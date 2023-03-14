@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 	int ret = 1;
 
 	nnc_keyset kset = NNC_KEYSET_INIT;
-	nnc_keyset_default(&kset, 0);
+	nnc_keyset_default(&kset, NNC_KEYSET_RETAIL);
 
 	nnc_file cia_s;
 	nnc_result res;
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
 				goto out1;
 		}
 
-		res = nnc_copy(NNC_RSP(&cs), NNC_WSP(&writer));
+		res = nnc_copy(NNC_RSP(&cs), NNC_WSP(&writer), NULL);
 
 		if(encrypted) { NNC_WS_CALL0(writer.dec.r0, close); NNC_WS_CALL0(writer.enc.r1, close); }
 		else          { NNC_WS_CALL0(writer.enc.r0, close); }
@@ -117,7 +117,7 @@ out1:
 	nnc_cia_open_tmd(&cia, NNC_RSP(&cia_s), &sv);
 	sprintf(fname, "%s/tmd.%u", output_dir, tik.title_version);
 	if((res = nnc_wfile_open(&outtmd, fname)) != NNC_R_OK) goto out;
-	res = nnc_copy(NNC_RSP(&sv), NNC_WSP(&outtmd));
+	res = nnc_copy(NNC_RSP(&sv), NNC_WSP(&outtmd), NULL);
 	NNC_WS_CALL0(outtmd, close);
 	if(res == NNC_R_OK)
 	{

@@ -103,13 +103,11 @@ int cia_main(int argc, char *argv[])
 
 	nnc_cia_content_reader reader;
 	nnc_keyset kset = NNC_KEYSET_INIT;
-	nnc_keyset_default(&kset, false);
+	nnc_keyset_default(&kset, NNC_KEYSET_RETAIL);
 	if(nnc_cia_make_reader(&header, NNC_RSP(&f), &kset, &reader) != NNC_R_OK)
 		die("failed making content reader");
 
 	nnc_keypair kp;
-	nnc_keyset ks = NNC_KEYSET_INIT;
-	nnc_keyset_default(&ks, false);
 
 	NNC_FOREACH_CINDEX(index, header.content_index)
 	{
@@ -129,7 +127,7 @@ int cia_main(int argc, char *argv[])
 		if(nnc_read_ncch_header(NNC_RSP(&ncch), &ncch_hdr) == NNC_R_OK)
 		{
 			nnc_ncch_section_stream rrs;
-			nnc_fill_keypair(&kp, &ks, NULL, &ncch_hdr);
+			nnc_fill_keypair(&kp, &kset, NULL, &ncch_hdr);
 			if(nnc_ncch_section_romfs(&ncch_hdr, NNC_RSP(&ncch), &kp, &rrs) == NNC_R_OK)
 			{
 				nnc_romfs_header romfs;

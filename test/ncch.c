@@ -90,7 +90,7 @@ int ncch_info_main(int argc, char *argv[])
 	nnc_keyset ks = NNC_KEYSET_INIT;
 	if(nnc_scan_seeddb(&seeddb) != NNC_R_OK)
 		fprintf(stderr, "Failed to find a seeddb. Titles with seeds will not work.\n");
-	nnc_keyset_default(&ks, false);
+	nnc_keyset_default(&ks, NNC_KEYSET_RETAIL);
 	nnc_keypair kpair; int crypt = 1;
 	if(nnc_fill_keypair(&kpair, &ks, &seeddb, &header) != NNC_R_OK)
 		fprintf(stderr, "failed to fill keypair, crypto will not work.\n"), crypt = 0;

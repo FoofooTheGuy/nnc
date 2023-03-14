@@ -34,7 +34,7 @@ int tik_main(int argc, char *argv[])
 	if(nnc_read_ticket(NNC_RSP(&f), &tik) != NNC_R_OK)
 		die("failed to read ticket from '%s'", tik_file);
 	nnc_keyset kset;
-	nnc_keyset_default(&kset, false);
+	nnc_keyset_default(&kset, NNC_KEYSET_RETAIL);
 
 	printf(
 		"== %s ==\n"

@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 
 	if((res = nnc_scan_seeddb(&seeddb)) != NNC_R_OK)
 		fprintf(stderr, "Failed to load seeddb: %s. Titles with new crypto will not work.", nnc_strerror(res));
-	nnc_keyset_default(&kset, false);
+	nnc_keyset_default(&kset, NNC_KEYSET_RETAIL);
 
 	for(int i = 1; i < argc; ++i)
 	{

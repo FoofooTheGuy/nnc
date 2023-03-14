@@ -147,7 +147,7 @@ enum keyfield {
 	TYPE_FIELD = DEV | RETAIL,
 };
 
-#define TYPE_FLAG(is_dev) (is_dev ? DEV : RETAIL)
+#define TYPE_FLAG(sel) (sel == NNC_KEYSET_RETAIL ? RETAIL : DEV)
 
 static const struct _kstore {
 	const u128 kx_ncch0;
@@ -188,10 +188,10 @@ static const struct _kstore {
 	}
 };
 
-nnc_result nnc_keyset_default(nnc_keyset *ks, bool dev)
+nnc_result nnc_keyset_default(nnc_keyset *ks, u8 setsel)
 {
-	const struct _kstore *s = dev ? &default_keys[1] : &default_keys[0];
-	u8 type = ks->flags & TYPE_FIELD, mtype = TYPE_FLAG(dev);
+	const struct _kstore *s = &default_keys[setsel];
+	u8 type = ks->flags & TYPE_FIELD, mtype = TYPE_FLAG(setsel);
 	if(type & mtype) return NNC_R_MISMATCH;
 	ks->kx_ncch0 = s->kx_ncch0;
 	ks->kx_ncch1 = s->kx_ncch1;
@@ -248,7 +248,8 @@ nnc_result nnc_keyy_seed(nnc_ncch_header *ncch, nnc_u128 *keyy, u8 seed[NNC_SEED
 	nnc_sha256_hash hashbuf;
 	nnc_u8 strbuf[0x20];
 	memcpy(strbuf, seed, NNC_SEED_SIZE);
-	memcpy(strbuf + NNC_SEED_SIZE, &LE64(ncch->title_id), sizeof(ncch->title_id));
+	nnc_u64 title_id_int = LE64(ncch->title_id);
+	memcpy(strbuf + NNC_SEED_SIZE, &title_id_int, sizeof(ncch->title_id));
 	nnc_crypto_sha256(strbuf, hashbuf, 0x18);
 	if(memcmp(hashbuf, ncch->seed_hash, 4) != 0)
 		return NNC_R_CORRUPT;

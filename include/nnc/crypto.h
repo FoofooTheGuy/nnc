@@ -78,6 +78,11 @@ typedef struct nnc_keypair {
 	nnc_u128 secondary; ///< Also known as the "content" key.
 } nnc_keypair;
 
+/** \brief An enumeration containing the possible (builtin) keysets */
+enum nnc_keyset_selector {
+	NNC_KEYSET_RETAIL,
+	NNC_KEYSET_DEVELOPMENT,
+};
 
 /** \brief         Hash a \ref nnc_rstream partly.
  *  \param rs      Stream to hash.
@@ -120,11 +125,11 @@ bool nnc_crypto_hasheq(nnc_sha256_hash a, nnc_sha256_hash b);
  */
 nnc_result nnc_crypto_sha256(const nnc_u8 *buf, nnc_sha256_hash digest, nnc_u32 size);
 
-/** \brief      Sets default keys in a keyset.
- *  \param ks   Output keyset.
- *  \param dev  Whether or not to use a developer set.
+/** \brief         Sets default keys in a keyset.
+ *  \param ks      Output keyset.
+ *  \param setsel  The keyset selection parameter, see #nnc_keyset_selector.
  */
-nnc_result nnc_keyset_default(nnc_keyset *ks, bool dev);
+nnc_result nnc_keyset_default(nnc_keyset *ks, nnc_u8 setsel);
 
 /** \brief         Extracts all seeds from a SeedDB.
  *                 If this functions fails it is still safe to call

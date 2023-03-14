@@ -88,13 +88,19 @@ namespace nnc
 	class keyset final
 	{
 	public:
+		enum type
+		{
+			retail = NNC_KEYSET_RETAIL,
+			development = NNC_KEYSET_DEVELOPMENT,
+		};
+
 		using param = nnc_keyset *;
 
-		keyset(bool is_developer)
+		keyset(type ktype)
 		{
 			/* this is what the NNC_KEYSET_INIT macro does */
 			this->kset.flags = 0;
-			nnc_keyset_default(&this->kset, is_developer);
+			nnc_keyset_default(&this->kset, ktype);
 		}
 
 		operator nnc_keyset* () { return &this->kset; }
