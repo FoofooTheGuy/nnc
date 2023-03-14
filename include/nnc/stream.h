@@ -131,11 +131,13 @@ void nnc_subview_open(nnc_subview *self, nnc_rstream *child, nnc_u32 off, nnc_u3
 
 struct nnc_wstream;
 typedef nnc_result (*nnc_write_func)(struct nnc_wstream *self, nnc_u8 *buf, nnc_u32 size);
+typedef nnc_result (*nnc_wpad_func)(struct nnc_wstream *self, nnc_u32 count);
 typedef void (*nnc_wclose_func)(struct nnc_wstream *self);
 
 typedef struct nnc_wstream_funcs {
 	nnc_write_func write;
 	nnc_wclose_func close;
+	nnc_wpad_func pad;
 } nnc_wstream_funcs;
 
 typedef struct nnc_wstream {
@@ -157,106 +159,120 @@ nnc_result nnc_wfile_open(nnc_wfile *self, const char *name);
  *  \name   Virtual FileSystem
  */
 
-/** \brief Parameters for adding a file */
+/** \brief VFS vfile adding parameters for adding a real file */
 #define NNC_VFS_FILE(filename) &nnc__internal_vfs_generator_file, (filename)
-/** \brief Parameters for adding a read stream */
+/** \brief VFS vfile parameters for adding a read stream */
 #define NNC_VFS_READER(rs) &nnc__internal_vfs_generator_reader, (rs)
+/** \brief Identitiy map in a directory link, that is, preserve the names from the filesystem */
+#define nnc_vfs_identity_transform  NULL /* magic from the function itself */
+/** \brief An alternative name for nnc_rstream used in the VFS functions */
+#define nnc_vfs_stream nnc_rstream
 
-/** \brief Allocates a reader for use in a custom generator */
-#define nnc_vfs_generator_allocate_reader(type) (malloc(sizeof(type)))
+typedef void *nnc_vfs_generator_data;
 
-typedef struct nnc_vfs_generator {
-	nnc_result (*reader_from_node)(nnc_rstream **out_stream, void *udata);
-	nnc_result (*init_file_node)(void **out_udata, va_list params);
-	void (*delete_file_node)(void *udata);
-	size_t (*size)(void *udata);
-} nnc_vfs_generator;
+struct nnc_vfs;
+
+typedef struct nnc_vfs_reader_generator {
+	nnc_result (*initialize)(nnc_vfs_generator_data *udata, va_list va);
+	nnc_result (*make_reader)(nnc_vfs_generator_data udata, nnc_vfs_stream **out);
+	nnc_u64 (*node_size)(nnc_vfs_generator_data udata);
+	void (*delete_data)(nnc_vfs_generator_data udata);
+} nnc_vfs_reader_generator;
+
+typedef struct nnc_vfs_file_node {
+	char *vname;
+	const nnc_vfs_reader_generator *generator;
+	nnc_vfs_generator_data data;
+} nnc_vfs_file_node;
+
+typedef struct nnc_vfs_directory_node {
+	char *vname;
+	struct nnc_vfs_directory_node *directory_children;
+	nnc_vfs_file_node *file_children;
+	struct nnc_vfs *associated_vfs;
+	unsigned dircount, filecount;
+	unsigned diralloc, filealloc;
+} nnc_vfs_directory_node;
 
 typedef struct nnc_vfs_node {
-	const nnc_vfs_generator *generator;
-	void *generator_data;
 	char *vname;
-	unsigned is_dir : 1;
 } nnc_vfs_node;
 
 typedef struct nnc_vfs {
-	/* filesystems are "flat"; directory tree's are stored in one array
-	 * where the directory node MUST come before any file that's inside.
-	 * files are placed inside directories with <dir-name>/<file-name>.
-	 * directory names MUST be read back as <dir-name>/ and must NEVER start with a slash (/) */
-	nnc_vfs_node *nodes;
-	int len, size;
+	nnc_vfs_directory_node root_directory;
+	/* speeds up romfs processing by removing a tree walk requirement */
+	unsigned totaldirs;  /* including the root directory */
+	unsigned totalfiles;
 } nnc_vfs;
 
 /** \brief               Creates a new VFS.
  *  \param vfs           Output VFS.
- *  \param initial_size  The initial capacity for the new VFS object.
  *  \note                You must free the memory allocated by this function by a matching call to \ref nnc_vfs_free. */
-nnc_result nnc_vfs_init(nnc_vfs *vfs, int initial_size);
-
-/** \brief            Adds a new virtual file to a VFS objeca.
- *  \param vfs        VFS to add to.
- *  \param vfilename  The filename the file should have *in the VFS object*.
- *  \param generator  Usually filled out by \ref NNC_VFS_FILE or \ref NNC_VFS_READER, it is actually the generator that generates a reader (see \ref nnc_vfs_generator).
- *  \param ...        Parameters for the generator.
- *  \note             To add files in a subdirectory you must first create it with \ref nnc_vfs_add_dir.
- *  \code
- *  struct nnc_subview *my_reader;
- *  nnc_vfs_add_dir(&vfs, "some_directory/");
- *  nnc_vfs_add(&vfs, "some_directory/some_file.txt", NNC_VFS_FILE("real_dir/my_file.txt"));
- *  nnc_vfs_add(&vfs, "some_directory/some_file.bin", NNC_VFS_READER(my_reader));
- *  \endcode
- */
-nnc_result nnc_vfs_add(nnc_vfs *vfs, const char *vfilename, const nnc_vfs_generator *generator, ... /* generator parameters */);
-
-/** \brief           Adds a new virtual directory to a VFS object.
- *  \param vfs       VFS to add to.
- *  \param vdirname  Virtual directory name, with or without a final slash.
- *  \note            To link a real directory use \ref nnc_vfs_link_directory.
- */
-nnc_result nnc_vfs_add_dir(nnc_vfs *vfs, const char *vdirname);
+nnc_result nnc_vfs_init(nnc_vfs *vfs);
 
 /** \brief      free()s memory in use by a VFS.
  *  \param vfs  The VFS to free
  */
-void nnc_vfs_free(nnc_vfs *vfs);
+void nnc_vfs_free(nnc_vfs* vfs);
 
-/** \brief          Add all files in the real directory dirname in the VFS.
- *  \param vfs      The VFS to link into.
- *  \param dirname  The real directory to link.
- *  \param prefix   The virtual path to link into, or NULL to link into the root of the VFS.
+/** \brief            Adds a new virtual file to a VFS directory.
+ *  \param dir        Directory to add to.
+ *  \param vname      The filename the file should have *in the VFS directory*.
+ *  \param generator  Usually filled out by \ref NNC_VFS_FILE or \ref NNC_VFS_READER, it is actually the generator that generates a reader (see \ref nnc_vfs_reader_generator).
+ *  \param ...        Parameters for the generator.
  */
-nnc_result nnc_vfs_link_directory(nnc_vfs *vfs, const char *dirname, const char *prefix);
+nnc_result nnc_vfs_add_file(nnc_vfs_directory_node *dir, const char *vname, const nnc_vfs_reader_generator *generator, ... /* generator parameters */);
+
+/** \brief          Adds a new virtual directory to another VFS directory.
+ *  \param dir      Directory to add to.
+ *  \param vname    Virtual directory name, without a trailing slash.
+ *  \param new_dir  An optional pointer that, if passed, will be filled with another pionter to the newly created directory.
+ *  \note           To link an entire real directory tree use \ref nnc_vfs_link_directory.
+ */
+nnc_result nnc_vfs_add_directory(nnc_vfs_directory_node *dir, const char *vname, nnc_vfs_directory_node **new_dir);
+
+/** \brief            Add all files in a real directory tree to a directory in the VFS.
+ *  \param dir        The directory to link into.
+ *  \param dirname    The real directory path to link.
+ *  \param transform  This function is responsible for transforming the real names of files and directories in the linked directory.\n
+ *                    This function must return a new heap allocated string, or, to not add the file, NULL.\n
+ *                    To do no transformations at all (identity map) pass \ref nnc_vfs_identity_transform instead.\n
+ *                    The prototype of this callback is `char *transform(const char *original_name, void *udata);`
+ *  \param udata      This pointer will be passed to all calls of `transform` as the `udata` parameter.
+ *  \note             This feature is currently unavailable on windows.
+ */
+nnc_result nnc_vfs_link_directory(nnc_vfs_directory_node *dir, const char *dirname, char *(*transform)(const char *, void *), void *udata);
 
 /** \brief       Open a node in the VFS for reading.
  *  \param node  The node to open
  *  \param res   The output read stream.
- *  \note        The output read stream must be freed up with \ref nnc_vfs_close_node.
+ *  \note        The output read stream must be freed up with #nnc_vfs_close_node.
  */
-nnc_result nnc_vfs_open_node(nnc_vfs_node *node, nnc_rstream **res);
+nnc_result nnc_vfs_open_node(nnc_vfs_file_node *node, nnc_vfs_stream **res);
+
+/** \brief         Close the read stream that is opened by #nnc_vfs_open_node.
+ *  \param reader  The stream to close.
+ */
+void nnc_vfs_close_node(nnc_vfs_stream *reader);
 
 /** \brief       Get the file size of a node in the VFS.
  *  \param node  Node to get size of.
  */
-size_t nnc_vfs_node_size(nnc_vfs_node *node);
-
-/** \brief     Close the read stream that is opened by \ref nnc_vfs_open_node.
- *  \param rs  The stream to close.
- */
-void nnc_vfs_close_node(nnc_rstream *rs);
+nnc_u64 nnc_vfs_node_size(nnc_vfs_file_node *node);
 
 /* \cond INTERNAL */
-extern const nnc_vfs_generator nnc__internal_vfs_generator_reader;
-extern const nnc_vfs_generator nnc__internal_vfs_generator_file;
+extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_reader;
+extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_file;
 /* \endcond */
 
-/** \} */
+/* \} */
 
-/** \brief       Copy the contents of a stream to another.
- *  \param from  Source read stream.
- *  \param to    Destination write stream.
+/** \brief         Copy the contents of a stream to another.
+ *  \param from    Source read stream.
+ *  \param to      Destination write stream.
+ *  \param copied  (Optional) Output for the amount of copied bytes.
  */
-nnc_result nnc_copy(nnc_rstream *from, nnc_wstream *to);
+nnc_result nnc_copy(nnc_rstream *from, nnc_wstream *to, nnc_u32 *copied);
 
 NNC_END
 #endif

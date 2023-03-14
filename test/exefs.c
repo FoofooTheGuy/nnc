@@ -87,8 +87,9 @@ int build_exefs_main(int argc, char *argv[])
 	nnc_wfile outf = { NULL, NULL };
 	nnc_vfs vfs;
 
-	if((res = nnc_vfs_init(&vfs, 0)) != NNC_R_OK) goto err;
-	if((res = nnc_vfs_link_directory(&vfs, dir, NULL)) != NNC_R_OK) goto err;
+	if((res = nnc_vfs_init(&vfs)) != NNC_R_OK) goto err;
+	if((res = nnc_vfs_link_directory(&vfs.root_directory, dir, nnc_vfs_identity_transform, NULL)) != NNC_R_OK)
+		goto err;
 
 	if((res = nnc_wfile_open(&outf, out)) != NNC_R_OK) goto err;
 	if((res = nnc_write_exefs(&vfs, NNC_WSP(&outf))) != NNC_R_OK) goto err;
