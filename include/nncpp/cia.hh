@@ -154,7 +154,7 @@ namespace nnc
 #if NNCPP_ALLOW_IGNORE_ERRORS
 		cia_reader(cia& c, keyset::param kset = keyset::default_value())
 		{
-			this->initialize(c);
+			this->initialize(c, kset);
 		}
 #endif
 
