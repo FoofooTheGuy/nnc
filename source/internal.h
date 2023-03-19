@@ -92,8 +92,7 @@ bool nnc_find_support_file(const char *name, char *output);
 #define strdup nnc_strdup
 char *nnc_strdup(const char *s);
 
-struct dynbuf
-{
+struct dynbuf {
 	u8 *buffer;
 	u32 alloc, used;
 };

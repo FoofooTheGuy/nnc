@@ -78,11 +78,51 @@ typedef struct nnc_keypair {
 	nnc_u128 secondary; ///< Also known as the "content" key.
 } nnc_keypair;
 
+/** An opaque struct to handle incremental hashing */
+typedef void *nnc_sha256_incremental_hash;
+
 /** \brief An enumeration containing the possible (builtin) keysets */
 enum nnc_keyset_selector {
 	NNC_KEYSET_RETAIL,
 	NNC_KEYSET_DEVELOPMENT,
 };
+
+/** \{
+ *  \anchor incremental-sha256-hash
+ *  \name   Incremental SHA256 hashing
+ */
+
+/** \brief       Initializes a SHA256 incremental hasher.
+ *  \param self  The hasher to initialize.
+ */
+nnc_result nnc_crypto_sha256_incremental(nnc_sha256_incremental_hash *self);
+
+/** \brief         Feed data to a hasher.
+ *  \param self    The hasher to add the data into.
+ *  \param data    A pointer to the data to hash.
+ *  \param length  Size of `data` in bytes.
+ */
+void nnc_crypto_sha256_feed(nnc_sha256_incremental_hash self, nnc_u8 *data, nnc_u32 length);
+
+/** \brief         Extracts the digest from a hasher and resets it.
+ *  \param self    Hasher to finish.
+ *  \param digest  Output digest.
+ *  \note          This function does not free memory associated with the hasher, for that see #nnc_crypto_sha256_free.
+ */
+void nnc_crypto_sha256_finish(nnc_sha256_incremental_hash self, nnc_sha256_hash digest);
+
+/** \brief       Resets a hasher to start a new incremental hash.
+ *  \param self  The hasher to reset.
+ */
+void nnc_crypto_sha256_reset(nnc_sha256_incremental_hash self);
+
+/** \brief       Frees memory in use by a hasher.
+ *  \param self  The hasher to free.
+ *  \note        This function does not extract the digest, for that see #nnc_crypto_sha256_finish.
+ */
+void nnc_crypto_sha256_free(nnc_sha256_incremental_hash self);
+
+/** \} */
 
 /** \brief         Hash a \ref nnc_rstream partly.
  *  \param rs      Stream to hash.

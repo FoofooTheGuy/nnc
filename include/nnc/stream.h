@@ -131,13 +131,13 @@ void nnc_subview_open(nnc_subview *self, nnc_rstream *child, nnc_u32 off, nnc_u3
 
 struct nnc_wstream;
 typedef nnc_result (*nnc_write_func)(struct nnc_wstream *self, nnc_u8 *buf, nnc_u32 size);
-typedef nnc_result (*nnc_wpad_func)(struct nnc_wstream *self, nnc_u32 count);
-typedef void (*nnc_wclose_func)(struct nnc_wstream *self);
+typedef nnc_result (*nnc_wclose_func)(struct nnc_wstream *self);
+typedef nnc_result (*nnc_wseek_func)(struct nnc_wstream *self, nnc_u32 abspos);
 
 typedef struct nnc_wstream_funcs {
 	nnc_write_func write;
 	nnc_wclose_func close;
-	nnc_wpad_func pad;
+	nnc_wseek_func seek; ///< Note that this may be NULL in streams that do not support seeking.
 } nnc_wstream_funcs;
 
 typedef struct nnc_wstream {
@@ -265,7 +265,7 @@ extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_reader;
 extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_file;
 /* \endcond */
 
-/* \} */
+/** \} */
 
 /** \brief         Copy the contents of a stream to another.
  *  \param from    Source read stream.
@@ -273,6 +273,12 @@ extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_file;
  *  \param copied  (Optional) Output for the amount of copied bytes.
  */
 nnc_result nnc_copy(nnc_rstream *from, nnc_wstream *to, nnc_u32 *copied);
+
+/** \brief        Writes `count` 0x00 bytes as padding.
+ *  \param ws     The stream to write padding to.
+ *  \param count  The amount of 0x00 bytes to write.
+ */
+nnc_result nnc_write_padding(nnc_wstream *ws, nnc_u32 count);
 
 NNC_END
 #endif

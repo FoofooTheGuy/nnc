@@ -1,6 +1,7 @@
 
 #include <nnc/crypto.h>
 #include <nnc/romfs.h>
+#include <nnc/ivfc.h>
 #include <nnc/utf.h>
 #include <string.h>
 #include <stdlib.h>
@@ -8,9 +9,6 @@
 
 #define INVAL 0xFFFFFFFF /* aka UINT32_MAX */
 #define MAX_PATH 1024    /* no good rationale for this specific limit except it looking nice */
-
-#define MY_BLOCK_SIZE_LOG2 12 /* this parameter may not be changed, ctrtool for example hardcodes 0x1000 */
-#define MY_BLOCK_SIZE      (1 << MY_BLOCK_SIZE_LOG2) /* 2 ** 12 = 0x1000 */
 
 
 result nnc_read_romfs_header(rstream *rs, nnc_romfs_header *romfs)
@@ -536,7 +534,7 @@ static result nnc_romfs_write_file_data(nnc_wstream *ws, nnc_vfs_directory_node 
 		if(ret != NNC_R_OK)
 			return ret;
 		padding = ALIGN(copied, 16) - copied;
-		NNC_WS_PCALL(ws, pad, padding);
+		TRY(nnc_write_padding(ws, padding));
 	}
 	/* and recurse into directories */
 	for(unsigned i = 0; i < dir->dircount; ++i)
@@ -586,64 +584,8 @@ result nnc_write_romfs(nnc_vfs *vfs, nnc_wstream *ws)
 	/* first walk to add all metadata, and later we walk again but to add all file data */
 	TRYLBL(nnc_romfs_write_meta(&ctx, &vfs->root_directory, root_directory_offset), out);
 
-	/* level 3 is the actual "RomFS" header, first we calculate the size */
-	u64 l3_size = 0x28 + dir_hashtab_size + ctx.dir_meta.used + file_hashtab_size + ctx.file_meta.used + ctx.current_file_data_offset;
-	/* level 2 contains l3_size/block_size hashes, so the size is (l3_size/block_size)*hash_size, the hash used is sha256 (0x20 bytes)
-	 * note that it itself is also aligned to the block size of the level above (l1), which in our implementation is just the same */
-	u64 l2_size = (ALIGN(l3_size, MY_BLOCK_SIZE) / MY_BLOCK_SIZE) * sizeof(nnc_sha256_hash);
-	/* same thing going on here */
-	u64 l1_size = (ALIGN(l2_size, MY_BLOCK_SIZE) / MY_BLOCK_SIZE) * sizeof(nnc_sha256_hash);
-	/* and here too */
-	u32 l0_size = (ALIGN(l1_size, MY_BLOCK_SIZE) / MY_BLOCK_SIZE) * sizeof(nnc_sha256_hash);
-
-	u64 l1_offset = 0;                                         /* logical offset: directly after the ivfc header */
-	u64 l2_offset = ALIGN(l1_offset + l1_size, MY_BLOCK_SIZE); /* all packed after eachother */
-	u64 l3_offset = ALIGN(l2_offset + l2_size, MY_BLOCK_SIZE); /* same here */
-
-	/* and finally we can build the header */
-	u8 ivfc_header_buf[0x60];
-
-	/* "Level 0" header */
-	memcpy(&ivfc_header_buf[0x00], "IVFC", 4);
-	U32P(&ivfc_header_buf[0x04]) = LE32(0x10000); /* also known as "id" */
-	U32P(&ivfc_header_buf[0x08]) = LE32(l0_size); /* also known as the "master hash", although there may be more than one */
-	/* Level 1 */
-	U64P(&ivfc_header_buf[0x0C]) = LE64(l1_offset);          /* logical offset  */
-	U64P(&ivfc_header_buf[0x14]) = LE64(l1_size);            /* level 1 size    */
-	U32P(&ivfc_header_buf[0x1C]) = LE32(MY_BLOCK_SIZE_LOG2); /* block size log2 */
-	U32P(&ivfc_header_buf[0x20]) = 0;                        /* reserved        */
-	/* Level 2 */
-	U64P(&ivfc_header_buf[0x24]) = LE64(l2_offset);          /* logical offset  */
-	U64P(&ivfc_header_buf[0x2C]) = LE64(l2_size);            /* level 1 size    */
-	U32P(&ivfc_header_buf[0x34]) = LE32(MY_BLOCK_SIZE_LOG2); /* block size log2 */
-	U32P(&ivfc_header_buf[0x38]) = 0;                        /* reserved        */
-	/* Level 3 */
-	U64P(&ivfc_header_buf[0x3C]) = LE64(l3_offset);          /* logical offset  */
-	U64P(&ivfc_header_buf[0x44]) = LE64(l3_size);            /* level 1 size    */
-	U32P(&ivfc_header_buf[0x4C]) = LE32(MY_BLOCK_SIZE_LOG2); /* block size log2 */
-	U32P(&ivfc_header_buf[0x50]) = 0;                        /* reserved        */
-	/* Footer of the header */
-	U32P(&ivfc_header_buf[0x54]) = LE32(0x5C);               /* here goes the size of the IVFC header (without the alignment) */
-	/* the rest is padding until 0x60 (two dwords) */
-	memset(&ivfc_header_buf[0x58], 0x00, sizeof(ivfc_header_buf) - 0x58);
-
-	TRYLBL(NNC_WS_PCALL(ws, write, ivfc_header_buf, sizeof(ivfc_header_buf)), out);
-
-	/* now the actual layout, the logical offset is not indicative of it
-	 * it goes like this:
-	 *  lv0  - hashes of ??? (master hash)
-	 *  lv3  - romfs content
-	 *  lv1  - hashes of lv3
-	 *  lv2  - hashes of lv1 */
-
-	/* from here on we work with real offsets */
-
-#define l0_offset 0x60
-	l3_offset = ALIGN(l0_offset + l0_size, MY_BLOCK_SIZE);
-
-	/* for now, let's just 0 everything until l3 */
-
-	TRYLBL(NNC_WS_PCALL(ws, pad, l3_offset - 0x60), out);
+	nnc_ivfc_writer writer;
+	TRYLBL(nnc_open_ivfc_writer(&writer, ws, NNC_IVFC_LEVELS_ROMFS, NNC_IVFC_ID_ROMFS, NNC_IVFC_BLOCKSIZE_ROMFS), out);
 
 	u8 romfs_header_buf[0x28];
 
@@ -658,20 +600,19 @@ result nnc_write_romfs(nnc_vfs *vfs, nnc_wstream *ws)
 	U32P(&romfs_header_buf[0x20]) = LE32(ctx.file_meta.used);
 	U32P(&romfs_header_buf[0x24]) = LE32(sizeof(romfs_header_buf) + dir_hashtab_size + ctx.dir_meta.used + file_hashtab_size + ctx.file_meta.used);
 
-	TRYLBL(NNC_WS_PCALL(ws, write, romfs_header_buf, sizeof(romfs_header_buf)), out);
+	TRYLBL(NNC_WS_CALL(writer, write, romfs_header_buf, sizeof(romfs_header_buf)), out);
 
 	/* now we can dump our tables and afterwards ... */
-
-	TRYLBL(NNC_WS_PCALL(ws, write, (u8 *) ctx.dir_hash, dir_hashtab_size), out);
-	TRYLBL(NNC_WS_PCALL(ws, write, (u8 *) ctx.dir_meta.buffer, ctx.dir_meta.used), out);
-	TRYLBL(NNC_WS_PCALL(ws, write, (u8 *) ctx.file_hash, file_hashtab_size), out);
-	TRYLBL(NNC_WS_PCALL(ws, write, (u8 *) ctx.file_meta.buffer, ctx.file_meta.used), out);
+	TRYLBL(NNC_WS_CALL(writer, write, (u8 *) ctx.dir_hash, dir_hashtab_size), out);
+	TRYLBL(NNC_WS_CALL(writer, write, (u8 *) ctx.dir_meta.buffer, ctx.dir_meta.used), out);
+	TRYLBL(NNC_WS_CALL(writer, write, (u8 *) ctx.file_hash, file_hashtab_size), out);
+	TRYLBL(NNC_WS_CALL(writer, write, (u8 *) ctx.file_meta.buffer, ctx.file_meta.used), out);
 
 	/* and now the long-awaited files */
+	TRYLBL(nnc_romfs_write_file_data(NNC_WSP(&writer), &vfs->root_directory), out);
 
-	TRYLBL(nnc_romfs_write_file_data(NNC_WSP(ws), &vfs->root_directory), out);
-
-	/* TODO: Add l0, l1 and l2 hashing in the IVFC tree */
+	/* and this close writes the IVFC hashes and headers and such */
+	ret = NNC_WS_CALL0(writer, close);
 
 out:
 	nnc_dynbuf_free(&ctx.file_meta);

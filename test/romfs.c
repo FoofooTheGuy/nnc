@@ -116,12 +116,13 @@ static void extract_dir(nnc_romfs_ctx *ctx, nnc_romfs_info *info, const char *pa
 				if(r != ent.u.f.size) goto file_fail;
 				if(fwrite(cbuf, ent.u.f.size, 1, out) != 1)
 					goto file_fail;
+out:
+				fclose(out);
 				free(cbuf);
 				continue;
 file_fail:
 				fprintf(stderr, "fail: ");
-				fclose(out);
-				free(cbuf);
+				goto out;
 			}
 			fclose(out);
 		}

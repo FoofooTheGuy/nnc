@@ -61,7 +61,7 @@ nnc_result nnc_write_ticket(nnc_ticket *tik, nnc_wstream *ws)
 	/* 0xE4 */ memcpy(&data[0xE4], tik->limits, 0x40);
 	/* write header */
 	TRY(NNC_WS_PCALL(ws, write, data, sizeof(data)));
-	/* write index */
+	/* write index (TODO) */
 	return NNC_R_OK;
 }
 

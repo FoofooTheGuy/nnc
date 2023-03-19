@@ -1,5 +1,5 @@
 
-SOURCES  := source/stream.c source/exefs.c source/internal.c source/crypto.c source/sigcert.c source/tmd.c source/u128.c source/utf.c source/smdh.c source/romfs.c source/ncch.c source/exheader.c source/cia.c source/ticket.c
+SOURCES  := source/stream.c source/exefs.c source/internal.c source/crypto.c source/sigcert.c source/tmd.c source/u128.c source/utf.c source/smdh.c source/romfs.c source/ncch.c source/exheader.c source/cia.c source/ticket.c source/ivfc.c
 CFLAGS   ?= -ggdb3 -Wall -Wextra -pedantic
 TARGET   := libnnc.a
 BUILD    ?= build
@@ -18,7 +18,9 @@ TEST_OBJECTS := $(foreach source,$(TEST_SOURCES),$(BUILD)/$(source:.c=.o))
 OBJECTS      := $(foreach source,$(SOURCES),$(BUILD)/$(source:.c=.o))
 SO_TARGET    := $(TARGET:.a=.so)
 DEPS         := $(OBJECTS:.o=.d)
-CFLAGS       += -Iinclude -std=c99
+SHAREDFLAGS  := -Iinclude
+CXXFLAGS     := $(CFLAGS) $(SHAREDFLAGS) -std=c++11
+CFLAGS       +=           $(SHAREDFLAGS) -std=c99
 
 
 .PHONY: all clean test shared run-test docs examples install uninstall

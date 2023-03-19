@@ -120,6 +120,7 @@ nnc_result nnc_read_romfs_header(nnc_rstream *rs, nnc_romfs_header *romfs);
 /** \brief      Write a RomFS.
  *  \param vfs  The Virtual FileSystem to use to fill up the RomFS contents.
  *  \param ws   The stream to write the RomFS to.
+ *  \note       This function requires the `seek` function in `ws`
  */
 nnc_result nnc_write_romfs(nnc_vfs *vfs, nnc_wstream *ws);
 

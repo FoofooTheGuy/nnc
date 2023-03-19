@@ -22,6 +22,37 @@
 	#define mbedtls_sha1_finish mbedtls_sha1_finish_ret
 #endif
 
+nnc_result nnc_crypto_sha256_incremental(nnc_sha256_incremental_hash *self)
+{
+	*self = malloc(sizeof(mbedtls_sha256_context));
+	if(!*self) return NNC_R_NOMEM;
+	mbedtls_sha256_init(*self);
+	mbedtls_sha256_starts(*self, 0);
+	return NNC_R_OK;
+}
+
+void nnc_crypto_sha256_feed(nnc_sha256_incremental_hash self, u8 *data, u32 length)
+{
+	mbedtls_sha256_update(self, data, length);
+}
+
+void nnc_crypto_sha256_finish(nnc_sha256_incremental_hash self, nnc_sha256_hash digest)
+{
+	mbedtls_sha256_finish(self, digest);
+	mbedtls_sha256_free(self);
+}
+
+void nnc_crypto_sha256_reset(nnc_sha256_incremental_hash self)
+{
+	mbedtls_sha256_init(self);
+	mbedtls_sha256_starts(self, 0);
+}
+
+void nnc_crypto_sha256_free(nnc_sha256_incremental_hash self)
+{
+	free(self);
+}
+
 result nnc_crypto_sha256_part(nnc_rstream *rs, nnc_sha256_hash digest, u32 size)
 {
 	mbedtls_sha256_context ctx;
@@ -634,9 +665,15 @@ static result aes_cbc_write(nnc_aes_cbc *self, u8 *buf, u32 size)
 	return NNC_R_OK;
 }
 
+static result aes_cbc_wclose(nnc_aes_cbc *self)
+{
+	aes_cbc_close(self);
+	return NNC_R_OK;
+}
+
 static const nnc_wstream_funcs aes_cbc_wfuncs = {
 	.write = (nnc_write_func) aes_cbc_write,
-	.close = (nnc_wclose_func) aes_cbc_close,
+	.close = (nnc_wclose_func) aes_cbc_wclose,
 };
 
 nnc_result nnc_aes_cbc_open_w(nnc_aes_cbc *self, nnc_wstream *child, u8 key[0x10], u8 iv[0x10])

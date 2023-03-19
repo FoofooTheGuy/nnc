@@ -66,31 +66,18 @@ result nnc_file_open(nnc_file *self, const char *name)
 static nnc_result wfile_write(nnc_wfile *self, nnc_u8 *buf, nnc_u32 size)
 { return fwrite(buf, 1, size, self->f) == size ? NNC_R_OK : NNC_R_FAIL_WRITE; }
 
-static void wfile_close(nnc_wfile *self)
-{ fclose(self->f); }
+static result wfile_close(nnc_wfile *self)
+{ return fclose(self->f) == 0 ? NNC_R_OK : NNC_R_FAIL_WRITE; }
 
-static nnc_result wfile_pad(nnc_wfile *self, nnc_u32 count)
+static nnc_result wfile_seek(nnc_wfile *self, nnc_u32 pos)
 {
-	u8 buffer[4096];
-	memset(buffer, 0, sizeof(buffer));
-
-	nnc_u32 left = count, to_do;
-	nnc_result ret;
-
-	while(left)
-	{
-		to_do = MIN(left, sizeof(buffer));
-		TRY(wfile_write(self, buffer, to_do));
-		left -= to_do;
-	}
-
-	return NNC_R_OK;
+	return fseek(self->f, pos, SEEK_SET) == 0 ? NNC_R_OK : NNC_R_SEEK_RANGE;
 }
 
 static const nnc_wstream_funcs wfile_funcs = {
 	.write = (nnc_write_func) wfile_write,
 	.close = (nnc_wclose_func) wfile_close,
-	.pad = (nnc_wpad_func) wfile_pad,
+	.seek = (nnc_wseek_func) wfile_seek,
 };
 
 result nnc_wfile_open(nnc_wfile *self, const char *name)
@@ -603,6 +590,24 @@ nnc_result nnc_copy(nnc_rstream *from, nnc_wstream *to, u32 *copied)
 		TRY(NNC_WS_PCALL(to, write, block, next));
 		left -= next;
 	}
+	return NNC_R_OK;
+}
+
+nnc_result nnc_write_padding(nnc_wstream *self, nnc_u32 count)
+{
+	u8 buffer[4096];
+	memset(buffer, 0x00, sizeof(buffer));
+
+	nnc_u32 left = count, to_do;
+	nnc_result ret;
+
+	while(left)
+	{
+		to_do = MIN(left, sizeof(buffer));
+		TRY(self->funcs->write(self, buffer, to_do));
+		left -= to_do;
+	}
+
 	return NNC_R_OK;
 }
 

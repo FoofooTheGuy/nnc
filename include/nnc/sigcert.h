@@ -131,7 +131,7 @@ nnc_result nnc_read_certchain(nnc_rstream *rs, nnc_certchain *chain, bool extend
  *                 - cert_bundle.bin: (nnc-specific) Container for all certificates.
  *  \param chain  Output certificate chain.
  *  \see          \ref nnc_scan_seeddb for the support directories scanned.
- *  \returns      This function does not return anything. Any missing/bad chains are ignored.
+ *  \note         This function does not return anything. Any missing/bad chains are ignored.
  *  \note         You should always call \ref nnc_free_certchain after you're done with \p chain.
  */
 void nnc_scan_certchains(nnc_certchain *chain);

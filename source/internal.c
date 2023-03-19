@@ -133,6 +133,26 @@ const char *nnc_strerror(nnc_result res)
 	return NULL;
 }
 
+u32 nnc_log2(u32 x)
+{
+	/* x is not a power of 2 */
+	if(x == 0 || x & (x - 1))
+		return 0;
+#ifdef __GNUC__
+	return __builtin_ctz(x);
+#else
+	u32 i;
+	for(i = 0; i < sizeof(u32) * 8 - 1; ++i)
+		if(x & (1 << i)) break;
+	return i;
+#endif
+}
+
+u32 nnc_pow2(u32 exp)
+{
+	return 1 << exp;
+}
+
 #if NNC_PLATFORM_UNIX
 	#include <unistd.h>
 	#define UNIX_LIKE

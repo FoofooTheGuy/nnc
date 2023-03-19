@@ -91,6 +91,17 @@ void nnc_parse_version(nnc_u16 ver, nnc_u8 *major, nnc_u8 *minor, nnc_u8 *patch)
  */
 const char *nnc_strerror(nnc_result res);
 
+/** \brief    Computes the log2 result of x.
+ *  \param x  Value to calculate the log2 of.
+ *  \note     Returns 0 if `x` is not a power of 2.
+ */
+nnc_u32 nnc_log2(nnc_u32 x);
+
+/** \brief      Calculates the `exp`th power of 2.
+ *  \param exp  The power to raise to.
+ * */
+nnc_u32 nnc_pow2(nnc_u32 exp);
+
 /** \{
  *  \anchor tid
  *  \name   Title IDs
