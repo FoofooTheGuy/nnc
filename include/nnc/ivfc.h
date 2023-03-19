@@ -77,5 +77,10 @@ nnc_result nnc_read_ivfc_header(nnc_rstream *rs, nnc_ivfc *ivfc, nnc_u32 expecte
  */
 nnc_result nnc_open_ivfc_writer(nnc_ivfc_writer *self, nnc_wstream *child, nnc_u32 levels, nnc_u32 id, nnc_u32 block_size);
 
+/** \brief       Frees memory in use by an IVFC writer without writing out the rest of the IVFC file.
+ *  \param self  The writer to free.
+ */
+void nnc_ivfc_abort_write(nnc_ivfc_writer *self);
+
 #endif
 

@@ -1,5 +1,5 @@
 /** \file  exefs.h
- *  \brief Functions relating to exefs.
+ *  \brief Functions relating to ExeFS.
  *  \see   https://www.3dbrew.org/wiki/ExeFS
  */
 #ifndef inc_nnc_exefs_h

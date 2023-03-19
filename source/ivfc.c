@@ -42,7 +42,8 @@ nnc_result nnc_read_ivfc_header(nnc_rstream *rs, nnc_ivfc *ivfc, nnc_u32 expecte
 
 	ivfc->number_levels = i;
 
-	return i != 0 && ivfc->number_levels != expected_levels ? NNC_R_CORRUPT : NNC_R_OK;
+	/* zero levels means there's not even application data.... that sounds like corruption */
+	return i == 0 || (expected_levels != 0 && ivfc->number_levels != expected_levels) ? NNC_R_CORRUPT : NNC_R_OK;
 }
 
 static result nnc_ivfc_finish_block(nnc_ivfc_writer *self)
@@ -269,5 +270,10 @@ nnc_result nnc_open_ivfc_writer(nnc_ivfc_writer *self, nnc_wstream *child, nnc_u
 	}
 
 	return NNC_R_OK;
+}
+
+void nnc_ivfc_abort_write(nnc_ivfc_writer *self)
+{
+	nnc_crypto_sha256_free(self->current_hash);
 }
 

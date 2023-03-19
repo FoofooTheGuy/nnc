@@ -551,6 +551,7 @@ result nnc_write_romfs(nnc_vfs *vfs, nnc_wstream *ws)
 
 	/* dir count starts at one due to the root dir / */
 	struct romfs_writer_ctx ctx = { NULL, NULL, {NULL}, {NULL}, NULL, 0, 0, 0, 0, 0 };
+	nnc_ivfc_writer writer = { NULL };
 
 	ctx.dir_hashtab_len = nnc_romfs_table_length(vfs->totaldirs);
 	ctx.file_hashtab_len = nnc_romfs_table_length(vfs->totalfiles);
@@ -584,7 +585,6 @@ result nnc_write_romfs(nnc_vfs *vfs, nnc_wstream *ws)
 	/* first walk to add all metadata, and later we walk again but to add all file data */
 	TRYLBL(nnc_romfs_write_meta(&ctx, &vfs->root_directory, root_directory_offset), out);
 
-	nnc_ivfc_writer writer;
 	TRYLBL(nnc_open_ivfc_writer(&writer, ws, NNC_IVFC_LEVELS_ROMFS, NNC_IVFC_ID_ROMFS, NNC_IVFC_BLOCKSIZE_ROMFS), out);
 
 	u8 romfs_header_buf[0x28];
@@ -613,8 +613,12 @@ result nnc_write_romfs(nnc_vfs *vfs, nnc_wstream *ws)
 
 	/* and this close writes the IVFC hashes and headers and such */
 	ret = NNC_WS_CALL0(writer, close);
+	writer.funcs = NULL; /* just so we don't abort twice */
 
 out:
+	if(writer.funcs && ret != NNC_R_OK)
+		nnc_ivfc_abort_write(&writer);
+
 	nnc_dynbuf_free(&ctx.file_meta);
 	nnc_dynbuf_free(&ctx.dir_meta);
 	free(ctx.utfc_buffer);
