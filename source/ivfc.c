@@ -188,8 +188,9 @@ static result nnc_ivfc_wclose(nnc_ivfc_writer *self)
 		TRYLBL(NNC_WS_PCALL(self->child, write, (u8 *) hash_buffers[i], aligned_size), out);
 	}
 
+	u32 return_pos = NNC_WS_PCALL0(self->child, tell);
 	/* Now we can write the header and level 0, after we seek and seek back to the end */
-	TRYLBL(NNC_WS_PCALL(self->child, seek, 0), out);
+	TRYLBL(NNC_WS_PCALL(self->child, seek, self->header_pos), out);
 
 	u32 block_size_log2 = nnc_log2(self->block_size);
 
@@ -225,6 +226,9 @@ static result nnc_ivfc_wclose(nnc_ivfc_writer *self)
 	 * never be bigger than we can actually safely store in one block */
 	TRYLBL(NNC_WS_PCALL(self->child, write, (u8 *) master_hashes, ALIGN(real_size + l0_size, self->block_size) - real_size), out);
 
+	/* and finally restore the position */
+	TRYLBL(NNC_WS_PCALL(self->child, seek, return_pos), out);
+
 out:
 	/* And finally we can free up our own resources */
 	nnc_crypto_sha256_free(self->current_hash);
@@ -234,9 +238,15 @@ out:
 	return ret;
 }
 
+static u32 nnc_ivfc_wtell(nnc_ivfc_writer *self)
+{
+	return self->child->funcs->tell(self->child);
+}
+
 static nnc_wstream_funcs nnc_ivfc_wfuncs = {
 	.write = (nnc_write_func)  nnc_ivfc_wwrite,
 	.close = (nnc_wclose_func) nnc_ivfc_wclose,
+	.tell  = (nnc_wtell_func)  nnc_ivfc_wtell,
 };
 
 nnc_result nnc_open_ivfc_writer(nnc_ivfc_writer *self, nnc_wstream *child, nnc_u32 levels, nnc_u32 id, nnc_u32 block_size)
@@ -247,6 +257,7 @@ nnc_result nnc_open_ivfc_writer(nnc_ivfc_writer *self, nnc_wstream *child, nnc_u
 	self->id            = id;
 	self->block_size    = block_size;
 	self->final_lv_size = 0;
+	self->header_pos    = child->funcs->tell(child);
 
 	if(!child->funcs->seek || block_size == 0 || block_size & (block_size - 1) || levels > NNC_IVFC_MAX_LEVELS)
 		return NNC_R_INVAL;

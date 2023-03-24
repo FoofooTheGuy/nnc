@@ -58,7 +58,7 @@ enum nnc_section {
 typedef struct nnc_aes_ctr {
 	const void *funcs;
 	void *crypto_ctx; ///< Context for the cryptographic library used.
-	void *child;
+	nnc_rstream *child;
 	nnc_u8 last_unaligned_block[0x10];
 	nnc_u8 ctr[0x10];
 	nnc_u128 iv;
@@ -67,7 +67,7 @@ typedef struct nnc_aes_ctr {
 typedef struct nnc_aes_cbc {
 	const void *funcs;
 	void *crypto_ctx; ///< Context for the cryptographic library used.
-	void *child;
+	nnc_rstream *child;
 	nnc_u8 last_unaligned_block[0x10];
 	nnc_u8 init_iv[0x10];
 	nnc_u8 iv[0x10];

@@ -74,10 +74,14 @@ static nnc_result wfile_seek(nnc_wfile *self, nnc_u32 pos)
 	return fseek(self->f, pos, SEEK_SET) == 0 ? NNC_R_OK : NNC_R_SEEK_RANGE;
 }
 
+static nnc_u32 wfile_tell(nnc_wfile *self)
+{ return ftell(self->f); }
+
 static const nnc_wstream_funcs wfile_funcs = {
 	.write = (nnc_write_func) wfile_write,
 	.close = (nnc_wclose_func) wfile_close,
 	.seek = (nnc_wseek_func) wfile_seek,
+	.tell = (nnc_wtell_func) wfile_tell,
 };
 
 result nnc_wfile_open(nnc_wfile *self, const char *name)

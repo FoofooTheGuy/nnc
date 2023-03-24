@@ -52,6 +52,7 @@ typedef struct nnc_ivfc_writer {
 	nnc_u32 blocks_hashed;
 	nnc_u32 id, levels;
 	nnc_u32 block_size; /* not log2! */
+	nnc_u32 header_pos;
 } nnc_ivfc_writer;
 
 /** \brief                  Reads the header of an IVFC.

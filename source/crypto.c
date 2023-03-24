@@ -671,9 +671,15 @@ static result aes_cbc_wclose(nnc_aes_cbc *self)
 	return NNC_R_OK;
 }
 
+static u32 aes_cbc_wtell(nnc_aes_cbc *self)
+{
+	return self->child->funcs->tell(self->child);
+}
+
 static const nnc_wstream_funcs aes_cbc_wfuncs = {
 	.write = (nnc_write_func) aes_cbc_write,
 	.close = (nnc_wclose_func) aes_cbc_wclose,
+	.tell  = (nnc_wtell_func) aes_cbc_wtell,
 };
 
 nnc_result nnc_aes_cbc_open_w(nnc_aes_cbc *self, nnc_wstream *child, u8 key[0x10], u8 iv[0x10])

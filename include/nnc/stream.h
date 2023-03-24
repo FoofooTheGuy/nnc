@@ -39,7 +39,7 @@ typedef nnc_u32 (*nnc_size_func)(struct nnc_rstream *self);
 /** Close/free the stream */
 typedef void (*nnc_close_func)(struct nnc_rstream *self);
 /** Get current position in stream */
-typedef nnc_u32(*nnc_tell_func)(struct nnc_rstream *self);
+typedef nnc_u32 (*nnc_tell_func)(struct nnc_rstream *self);
 
 /** All functions a stream should have */
 typedef struct nnc_rstream_funcs {
@@ -133,11 +133,13 @@ struct nnc_wstream;
 typedef nnc_result (*nnc_write_func)(struct nnc_wstream *self, nnc_u8 *buf, nnc_u32 size);
 typedef nnc_result (*nnc_wclose_func)(struct nnc_wstream *self);
 typedef nnc_result (*nnc_wseek_func)(struct nnc_wstream *self, nnc_u32 abspos);
+typedef nnc_u32    (*nnc_wtell_func)(struct nnc_wstream *self);
 
 typedef struct nnc_wstream_funcs {
 	nnc_write_func write;
 	nnc_wclose_func close;
 	nnc_wseek_func seek; ///< Note that this may be NULL in streams that do not support seeking.
+	nnc_wtell_func tell;
 } nnc_wstream_funcs;
 
 typedef struct nnc_wstream {
@@ -150,6 +152,10 @@ typedef struct nnc_wfile {
 	FILE *f;
 } nnc_wfile;
 
+/** \brief       Opens a file for writing.
+ *  \param self  Output write stream.
+ *  \param name  Filename to open.
+ */
 nnc_result nnc_wfile_open(nnc_wfile *self, const char *name);
 
 /** \} */
