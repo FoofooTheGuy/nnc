@@ -13,23 +13,13 @@
 void die(const char *fmt, ...);
 
 
-static char *utf16conv(const nnc_u16 *u16string, int u16len)
-{
-	int len = u16len * 4;
-	char *str = malloc(len + 1);
-	str[nnc_utf16_to_utf8((nnc_u8 *) str, len, u16string, u16len)] = '\0';
-	return str;
-}
-
 static void print_dir(nnc_romfs_ctx *ctx, nnc_romfs_info *dir, int indent)
 {
 	nnc_romfs_iterator it = nnc_romfs_mkit(ctx, dir);
 	nnc_romfs_info ent;
 	while(nnc_romfs_next(&it, &ent))
 	{
-		char *fname = utf16conv(ent.filename, ent.filename_length);
-		printf("%*s%s%s\n", indent, "", fname, ent.type == NNC_ROMFS_DIR ? "/" : "");
-		free(fname);
+		printf("%*s%s%s\n", indent, "", nnc_romfs_info_filename(ctx, &ent), ent.type == NNC_ROMFS_DIR ? "/" : "");
 		if(ent.type == NNC_ROMFS_DIR)
 			print_dir(ctx, &ent, indent + 1);
 	}
@@ -92,9 +82,7 @@ static void extract_dir(nnc_romfs_ctx *ctx, nnc_romfs_info *info, const char *pa
 	pathbuf[len++] = '/';
 	while(nnc_romfs_next(&it, &ent))
 	{
-		char *fname = utf16conv(ent.filename, ent.filename_length);
-		strcpy(pathbuf + len, fname);
-		free(fname);
+		strcpy(pathbuf + len, nnc_romfs_info_filename(ctx, &ent));
 		if(ent.type == NNC_ROMFS_DIR)
 			extract_dir(ctx, &ent, pathbuf, baselen);
 		else

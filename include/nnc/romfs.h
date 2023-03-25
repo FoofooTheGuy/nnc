@@ -7,6 +7,7 @@
 
 #include <nnc/stream.h>
 #include <nnc/base.h>
+#include <nnc/utf.h>
 NNC_BEGIN
 
 typedef struct nnc_romfs_header {
@@ -22,6 +23,7 @@ typedef struct nnc_romfs_header {
 
 typedef struct nnc_romfs_ctx {
 	struct nnc_romfs_header header;
+	nnc_utf_conversion_buffer cbuf;
 	nnc_u32 *file_hash_tab;
 	nnc_u32 *dir_hash_tab;
 	nnc_u8 *file_meta_data;
@@ -88,6 +90,15 @@ nnc_romfs_iterator nnc_romfs_mkit(nnc_romfs_ctx *ctx, const nnc_romfs_info *dir)
  *  \param path  The absolute RomFS path to the file or directory.
  */
 nnc_result nnc_get_info(nnc_romfs_ctx *ctx, nnc_romfs_info *info, const char *path);
+
+/** \brief       Convert the UTF16 filename to UTF8 in a NULL-terminated string.
+ *  \param ctx   A context to get a UTF buffer from.
+ *  \param info  The entry to get the filename from.
+ *  \note        Subsequent calls to this function and #nnc_get_info will modify the original returned pointer.
+ *  \note        You do not have to free the return of this function.
+ *  \returns     This function may return NULL if allocation failed.
+ */
+const char *nnc_romfs_info_filename(nnc_romfs_ctx *ctx, nnc_romfs_info *info);
 
 /** \brief       Opens a RomFS file in a subview \ref nnc_rstream.
  *  \param ctx   Context from \ref nnc_init_romfs.

@@ -171,7 +171,7 @@ nnc_result nnc_wfile_open(nnc_wfile *self, const char *name);
  *  \param count  Amount of header bytes to save.
  *  \note         The buffered data is freed when this stream is closed.
  *  \note         This stream only supports seeking if the child stream does too.
- *  \note         The start of the header is determined to be the current position in the write stream.
+ *  \note         The start of the header is determined by the current position in the write stream.
  */
 nnc_result nnc_open_header_saver(nnc_header_saver *self, nnc_wstream *child, nnc_u32 count);
 

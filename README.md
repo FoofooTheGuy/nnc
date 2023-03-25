@@ -1,6 +1,6 @@
 # nnc
 
-No Nonsense CTR is a library that parses and (in limited support) writes 3ds related files.
+No Nonsense CTR is a library that reads and (limitedly) writes 3ds related files.
 
 To build you need mbedtls and a C compiler supporting at least C99
 

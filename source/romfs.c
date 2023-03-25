@@ -46,25 +46,17 @@ result nnc_read_romfs_header(rstream *rs, nnc_romfs_header *romfs)
 	return NNC_R_OK;
 }
 
-static u32 hash_func(u16 *name, u32 len, u32 parent)
+static u32 hash_func(const u16 *name, u32 len, u32 parent)
 {
 	/* ninty tm */
 	u32 ret = parent ^ 123456789;
 	for(u32 i = 0; i < len; ++i)
 	{
 		ret = (ret >> 5) | (ret << 27);
-		ret ^= LE16(name[i]);
+		ret ^= name[i];
 	}
 	return ret;
 }
-
-#define UTF16(str, len, conv, rlen, ...) \
-	u16 conv[MAX_PATH]; \
-	if(len >= sizeof(conv)) \
-	{ __VA_ARGS__ } \
-	u32 rlen; \
-	if((rlen = nnc_utf8_to_utf16(conv, MAX_PATH, (const u8 *) str, len)) >= MAX_PATH) \
-	{ __VA_ARGS__ }
 
 #define DIR_OFF_PARENT     0x00
 #define DIR_OFF_SIBLING    0x04
@@ -100,13 +92,12 @@ static u32 hash_func(u16 *name, u32 len, u32 parent)
 #define FILE_NAME(buf) ((const u16 *) (&(buf)[0x20]))
 #define FILE_META(ctx, offset) (ctx->file_meta_data + offset)
 
-static u32 get_dir_single_offset(nnc_romfs_ctx *ctx, const char *path, u32 len, u32 parent_offset)
+static u32 get_dir_single_offset(nnc_romfs_ctx *ctx, const u16 *path, u32 len, u32 parent_offset)
 {
-	UTF16(path, len, conv, rlen, return INVAL;)
 	u32 tab_len = ctx->header.dir_hash.length / sizeof(u32);
-	u32 i = hash_func(conv, rlen, parent_offset) % tab_len;
+	u32 i = hash_func(path, len, parent_offset) % tab_len;
 
-	u32 namelen, offset = ctx->dir_hash_tab[i];
+	u32 namelen, offset = ctx->dir_hash_tab[i], len2 = len * sizeof(u16);
 	u8 *dir;
 
 	do {
@@ -114,7 +105,7 @@ static u32 get_dir_single_offset(nnc_romfs_ctx *ctx, const char *path, u32 len, 
 			break; /* bucket is unused; fail */
 		dir = DIR_META(ctx, offset);
 		namelen = DIR_NAMELEN(dir);
-		if(namelen != rlen * 2 || memcmp(DIR_NAME(dir), conv, namelen) != 0)
+		if(namelen != len2 || memcmp(DIR_NAME(dir), path, len2) != 0)
 		{
 			offset = DIR_NEXTBUCKET(dir);
 			continue;
@@ -126,13 +117,12 @@ static u32 get_dir_single_offset(nnc_romfs_ctx *ctx, const char *path, u32 len, 
 	return INVAL;
 }
 
-static u32 get_file_single_offset(nnc_romfs_ctx *ctx, const char *path, u32 len, u32 parent_offset)
+static u32 get_file_single_offset(nnc_romfs_ctx *ctx, const u16 *path, u32 len, u32 parent_offset)
 {
-	UTF16(path, len, conv, rlen, return INVAL;)
 	u32 tab_len = ctx->header.file_hash.length / sizeof(u32);
-	u32 i = hash_func(conv, rlen, parent_offset) % tab_len;
+	u32 i = hash_func(path, len, parent_offset) % tab_len;
 
-	u32 namelen, offset = ctx->file_hash_tab[i];
+	u32 namelen, offset = ctx->file_hash_tab[i], len2 = len * sizeof(u16);
 	u8 *file;
 
 	do {
@@ -140,7 +130,7 @@ static u32 get_file_single_offset(nnc_romfs_ctx *ctx, const char *path, u32 len,
 			break; /* bucket is unused; fail */
 		file = FILE_META(ctx, offset);
 		namelen = FILE_NAMELEN(file);
-		if(namelen != rlen * 2 || memcmp(FILE_NAME(file), conv, namelen) != 0)
+		if(namelen != len2 || memcmp(FILE_NAME(file), path, len2) != 0)
 		{
 			offset = FILE_NEXTBUCKET(file);
 			continue;
@@ -152,39 +142,63 @@ static u32 get_file_single_offset(nnc_romfs_ctx *ctx, const char *path, u32 len,
 	return INVAL;
 }
 
-static u32 get_dir_offset_nofile(nnc_romfs_ctx *ctx, const char *path, const char **file_name)
+/* "/" and "\0" encodings are the same for both utf16 and utf8 */
+static const u16 *find_next_char(const u16 *str, u32 len, u16 mychar)
 {
-	if(*path == '/') ++path;
-	if(*path == '\0')
-	{
-		*file_name = NULL;
-		return 0; /* root is always at offset 0 */
-	}
-	u32 of = 0;
+	for(u32 i = 0; i < len; ++i)
+		if(str[i] == mychar)
+			return &str[i];
+	return NULL;
+}
 
-	const char *slash = path;
-	const char *prev = path;
-	while((slash = strchr(slash, '/')))
+static u32 get_offset_until_semilast_part(nnc_romfs_ctx *ctx, const u16 *utf16_path, u32 len, const u16 **last_part, u32 *last_part_len, int *dir_hint)
+{
+	static u16 char_slash = '/';
+	static u16 char_null  = '\0';
+
+	const u16 *eos = utf16_path + len;
+
+	while(utf16_path[0] == char_slash)
+		++utf16_path;
+
+	/* we parsed either "/" or ""; both should refer to the root */
+	if(utf16_path[0] == char_null)
 	{
-		int len = slash - prev;
-		++slash;
-		if(len == 0)
-		{
-			/* "somedirname//// "*/
-			while(*slash == '/')
-				++slash;
-			/* "somedirname/" */
-			if(*slash == '\0')
-				break;
-			continue;
-		}
-		if((of = get_dir_single_offset(ctx, prev, len, of)) == INVAL)
+		*last_part = NULL;
+		*dir_hint = 1;
+		return 0;
+	}
+
+	u32 off = 0; /* root directory */
+	const u16 *testvalid;
+	const u16 *slash = utf16_path;
+	const u16 *prev = utf16_path;
+
+	*dir_hint = 0;
+
+	while((slash = find_next_char(prev, eos - prev, char_slash)))
+	{
+		/* consider this input
+		 *  test/  <= this loop will put testvalid at null after which will be from the loop */
+		testvalid = slash;
+		while(*testvalid == char_slash) ++testvalid;
+		if(*testvalid == char_null) { *dir_hint = 1; break; }
+
+		if((off = get_dir_single_offset(ctx, prev, slash - prev, off)) == INVAL)
 			return INVAL;
-		prev = slash;
-	}
-	*file_name = prev;
 
-	return of;
+		/* this will skip all slashes that go directly after our slash,
+		 *  consider this input
+		 *   abc///b   <= will put prev at "b", after which it can find no more slashes and break */
+		prev = slash;
+		while(*prev == char_slash)
+			++prev;
+	}
+
+	*last_part_len = (slash ? slash : eos) - prev;
+	*last_part = prev;
+
+	return off;
 }
 
 static void fill_info_file(nnc_romfs_ctx *ctx, nnc_romfs_info *info, u32 offset)
@@ -213,31 +227,48 @@ static void fill_info_dir(nnc_romfs_ctx *ctx, nnc_romfs_info *info, u32 offset)
 
 nnc_result nnc_get_info(nnc_romfs_ctx *ctx, nnc_romfs_info *info, const char *path)
 {
-	const char *file_name;
-	u32 parent_of = get_dir_offset_nofile(ctx, path, &file_name), rof;
-	if(parent_of == INVAL) return NNC_R_NOT_FOUND;
-	/* file_name == NULL means we want to get info on / */
-	if(!file_name) { rof = 0; goto do_dir; }
-	u32 len = strlen(file_name);
-	// TODO: If we convert path to UTF16 here we can save a conversion
-	//       in get_dir_single_offset
-	/* opening a file is the more likely case */
-	rof = get_file_single_offset(ctx, file_name, len, parent_of);
-	if(rof != INVAL)
+	if(!nnc_cbuf_utf8_to_utf16(&ctx->cbuf, (u8 *) path, strlen(path)))
+		return NNC_R_NOT_FOUND;
+	const u16 *last_part;
+	u32 last_part_len, rof;
+	int dir_hint;
+	u32 parent_off = get_offset_until_semilast_part(ctx, ctx->cbuf.buffer.utf16, ctx->cbuf.converted_length, &last_part, &last_part_len, &dir_hint);
+	if(parent_off == INVAL) return NNC_R_NOT_FOUND;
+	/* means the root directory was requested */
+	if(last_part == NULL)
 	{
-		fill_info_file(ctx, info, rof);
-		return NNC_R_OK;
+		rof = 0;
+		goto do_fill_dir;
 	}
-	/* but a directory is possible too */
-	rof = get_dir_single_offset(ctx, file_name, len, parent_of);
+
+	/* means a trailing slash was found; always a directory */
+	if(!dir_hint)
+	{
+		/* now we first look for a file, since that is more likely in the no trailing slash case */
+		rof = get_file_single_offset(ctx, last_part, last_part_len, parent_off);
+		if(rof != INVAL)
+		{
+			fill_info_file(ctx, info, rof);
+			return NNC_R_OK;
+		}
+		/* it could still be a directory if there was no trailing slash, worth checking for */
+	}
+
+	rof = get_dir_single_offset(ctx, last_part, last_part_len, parent_off);
 	if(rof != INVAL)
 	{
-do_dir:
+do_fill_dir:
 		fill_info_dir(ctx, info, rof);
 		return NNC_R_OK;
 	}
+
 	info->type = NNC_ROMFS_NONE;
 	return NNC_R_NOT_FOUND;
+}
+
+const char *nnc_romfs_info_filename(nnc_romfs_ctx *ctx, nnc_romfs_info *info)
+{
+	return (const char *) nnc_cbuf_utf16_to_utf8(&ctx->cbuf, info->filename, info->filename_length);
 }
 
 int nnc_romfs_next(nnc_romfs_iterator *it, nnc_romfs_info *ent)
@@ -300,8 +331,10 @@ result nnc_init_romfs(nnc_rstream *rs, nnc_romfs_ctx *ctx)
 
 	ctx->file_meta_data = ctx->dir_meta_data = NULL;
 	ctx->file_hash_tab = ctx->dir_hash_tab = NULL;
-	ret = NNC_R_NOMEM;
 
+	TRY(nnc_cbuf_init(&ctx->cbuf, 0));
+
+	ret = NNC_R_NOMEM;
 	if(!(ctx->file_hash_tab = malloc(ctx->header.file_hash.length)))
 		goto fail;
 	if(!(ctx->file_meta_data = malloc(ctx->header.file_meta.length)))
@@ -334,6 +367,7 @@ void nnc_free_romfs(nnc_romfs_ctx *ctx)
 	free(ctx->file_hash_tab);
 	free(ctx->dir_meta_data);
 	free(ctx->dir_hash_tab);
+	nnc_cbuf_free(&ctx->cbuf);
 }
 
 static bool nnc_is_composite(u32 x)
@@ -372,9 +406,7 @@ struct romfs_writer_ctx
 {
 	u32          *dir_hash, *file_hash;
 	struct dynbuf dir_meta,  file_meta;
-	u16 *utfc_buffer;
-	u32 utfc_buffer_len; /* avail */
-	int utfc_units; /* used */
+	nnc_utf_conversion_buffer cbuf;
 	u32 dir_hashtab_len;
 	u32 file_hashtab_len;
 	/* state */
@@ -383,26 +415,13 @@ struct romfs_writer_ctx
 
 static result nnc_romfs_convert_to_utf16(struct romfs_writer_ctx *ctx, const char *utf8)
 {
-	size_t len = strlen(utf8);
-	/* +4 because strings should be aligned by 4 and i'm lazy */
-	size_t should_alloc = 4 * len + 4;
-	if(should_alloc > ctx->utfc_buffer_len)
-	{
-		u16 *nbuf = realloc(ctx->utfc_buffer, should_alloc);
-		if(!nbuf) return NNC_R_NOMEM;
-		ctx->utfc_buffer_len = should_alloc;
-		ctx->utfc_buffer = nbuf;
-	}
-	int units = nnc_utf8_to_utf16(ctx->utfc_buffer, should_alloc, (const u8 *) utf8, len);
-	/* assert(units > 0 && units < should_alloc) */
-	memset(&ctx->utfc_buffer[units], '\0', 4);
-	ctx->utfc_units = units;
-	return NNC_R_OK;
+	return nnc_cbuf_utf8_to_utf16(&ctx->cbuf, (const u8 *) utf8, strlen(utf8))
+		? NNC_R_OK : NNC_R_NOMEM;
 }
 
 static inline void nnc_romfs_add_to_hash_to_offset_table(struct romfs_writer_ctx *ctx, u32 parent_offset, u32 offset, u32 *hash_table, u32 hashtablen, u8 *meta_table, u32 next_bucket_offset)
 {
-	u32 index = hash_func(ctx->utfc_buffer, ctx->utfc_units, parent_offset) % hashtablen;
+	u32 index = hash_func(ctx->cbuf.buffer.utf16, ctx->cbuf.converted_length, parent_offset) % hashtablen;
 	u32 initial_offset = hash_table[index];
 	if(initial_offset == INVAL)
 		hash_table[index] = offset;
@@ -443,7 +462,7 @@ static result nnc_romfs_write_directory(struct romfs_writer_ctx *ctx, const char
 {
 	nnc_result ret = nnc_romfs_convert_to_utf16(ctx, vdirname ? vdirname : "");
 	if(ret != NNC_R_OK) return ret;
-	u32 actual_string_length = ctx->utfc_units * 2;
+	u32 actual_string_length = ctx->cbuf.converted_length * 2;
 
 	u32 meta_offset = ctx->dir_meta.used;
 	nnc_romfs_add_to_hash_to_offset_table(ctx, parent_offset, meta_offset, ctx->dir_hash, ctx->dir_hashtab_len, ctx->dir_meta.buffer, DIR_OFF_NEXTBUCKET);
@@ -458,7 +477,7 @@ static result nnc_romfs_write_directory(struct romfs_writer_ctx *ctx, const char
 	U32P(&mbuf[DIR_OFF_NAMELEN]) = LE32(actual_string_length);
 
 	TRY(dynbuf_push(&ctx->dir_meta, mbuf, DIR_OFF_NAMELEN + 4));
-	TRY(dynbuf_push(&ctx->dir_meta, (u8 *) ctx->utfc_buffer, ALIGN(actual_string_length, 4)));
+	TRY(dynbuf_push(&ctx->dir_meta, (u8 *) ctx->cbuf.buffer.utf16, ALIGN(actual_string_length, 4)));
 
 	/* we have to add ourselves to some lists! */
 	if(vdirname) /* can't add to the root */
@@ -473,7 +492,7 @@ static result nnc_romfs_write_file_meta(struct romfs_writer_ctx *ctx, nnc_vfs_fi
 {
 	nnc_result ret = nnc_romfs_convert_to_utf16(ctx, node->vname);
 	if(ret != NNC_R_OK) return ret;
-	u32 actual_string_length = ctx->utfc_units * 2;
+	u32 actual_string_length = ctx->cbuf.converted_length * 2;
 
 	u32 meta_offset = ctx->file_meta.used;
 	nnc_romfs_add_to_hash_to_offset_table(ctx, parent_offset, meta_offset, ctx->file_hash, ctx->file_hashtab_len, ctx->file_meta.buffer, FILE_OFF_NEXTBUCKET);
@@ -490,7 +509,7 @@ static result nnc_romfs_write_file_meta(struct romfs_writer_ctx *ctx, nnc_vfs_fi
 	U32P(&mbuf[FILE_OFF_NAMELEN]) = LE32(actual_string_length);
 
 	TRY(dynbuf_push(&ctx->file_meta, mbuf, FILE_OFF_NAMELEN + 4));
-	TRY(dynbuf_push(&ctx->file_meta, (u8 *) ctx->utfc_buffer, ALIGN(actual_string_length, 4)));
+	TRY(dynbuf_push(&ctx->file_meta, (u8 *) ctx->cbuf.buffer.utf16, ALIGN(actual_string_length, 4)));
 
 	/* we now need to add ourselves to the directory */
 	nnc_romfs_add_to_parent_directory(ctx, parent_offset, meta_offset, ctx->file_meta.buffer, DIR_OFF_FCHILDREN, FILE_OFF_SIBLING);
@@ -550,7 +569,7 @@ result nnc_write_romfs(nnc_vfs *vfs, nnc_wstream *ws)
 	/* first we start building the metadata & offset by hash lookup tables for both files and directories */
 
 	/* dir count starts at one due to the root dir / */
-	struct romfs_writer_ctx ctx = { NULL, NULL, {NULL}, {NULL}, NULL, 0, 0, 0, 0, 0 };
+	struct romfs_writer_ctx ctx = { NULL, NULL, {NULL}, {NULL}, {0,0,{NULL}},  0, 0, 0 };
 	nnc_ivfc_writer writer = { NULL };
 
 	ctx.dir_hashtab_len = nnc_romfs_table_length(vfs->totaldirs);
@@ -570,13 +589,7 @@ result nnc_write_romfs(nnc_vfs *vfs, nnc_wstream *ws)
 	memset(ctx.file_hash, 0xFF, file_hashtab_size);
 	memset(ctx.dir_hash, 0xFF, dir_hashtab_size);
 
-	ctx.utfc_buffer = malloc(128);
-	if(!ctx.utfc_buffer)
-	{
-		ret = NNC_R_NOMEM;
-		goto out;
-	}
-	ctx.utfc_buffer_len = 128;
+	TRYLBL(nnc_cbuf_init(&ctx.cbuf, 0), out);
 
 	/* first we have to write the root directory */
 	u32 root_directory_offset;
@@ -621,7 +634,7 @@ out:
 
 	nnc_dynbuf_free(&ctx.file_meta);
 	nnc_dynbuf_free(&ctx.dir_meta);
-	free(ctx.utfc_buffer);
+	nnc_cbuf_free(&ctx.cbuf);
 	free(ctx.file_hash);
 	free(ctx.dir_hash);
 
