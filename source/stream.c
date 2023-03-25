@@ -2,6 +2,7 @@
 #define _DEFAULT_SOURCE
 #define _BSD_SOURCE
 
+#include <nnc/crypto.h>
 #include <nnc/stream.h>
 #include <stdlib.h>
 #include <string.h>
@@ -90,6 +91,48 @@ result nnc_wfile_open(nnc_wfile *self, const char *name)
 	if(!self->f) return NNC_R_FAIL_OPEN;
 	self->funcs = &wfile_funcs;
 	return NNC_R_OK;
+}
+
+static result hdrsaver_write(nnc_header_saver *self, nnc_u8 *buf, nnc_u32 size)
+{
+	if(self->pos >= self->start && self->pos < self->start + self->count)
+	{
+		u32 relpos = self->pos - self->start;
+		u32 to_save = MIN(self->count - relpos, size);
+		memcpy(&self->buffer[relpos], buf, to_save);
+	}
+	self->pos += size;
+	return self->child->funcs->write(self->child, buf, size);
+}
+
+static result hdrsaver_close(nnc_header_saver *self) { free(self->buffer); return NNC_R_OK; }
+static nnc_result hdrsaver_seek(nnc_header_saver *self, nnc_u32 pos) { self->pos = pos; return self->child->funcs->seek(self->child, pos); }
+static nnc_u32 hdrsaver_tell(nnc_header_saver *self) { return self->child->funcs->tell(self->child); }
+
+
+static const nnc_wstream_funcs hdrsaver_funcs_seekable = {
+	.write = (nnc_write_func)  hdrsaver_write,
+	.close = (nnc_wclose_func) hdrsaver_close,
+	.seek  = (nnc_wseek_func)  hdrsaver_seek,
+	.tell  = (nnc_wtell_func)  hdrsaver_tell,
+};
+
+static const nnc_wstream_funcs hdrsaver_funcs = {
+	.write = (nnc_write_func)  hdrsaver_write,
+	.close = (nnc_wclose_func) hdrsaver_close,
+	.tell  = (nnc_wtell_func)  hdrsaver_tell,
+};
+
+nnc_result nnc_open_header_saver(nnc_header_saver *self, nnc_wstream *child, nnc_u32 count)
+{
+	self->funcs = child->funcs->seek ? &hdrsaver_funcs_seekable : &hdrsaver_funcs;
+	self->child = child;
+	self->count = count;
+	self->start = NNC_WS_PCALL0(child, tell);
+	self->pos   = self->start;
+
+	self->buffer = malloc(count);
+	return self->buffer ? NNC_R_OK : NNC_R_NOMEM;
 }
 
 static result mem_read(nnc_memory *self, u8 *buf, u32 max, u32 *totalRead)
@@ -424,6 +467,9 @@ nnc_result nnc_vfs_link_directory(nnc_vfs_directory_node *dir, const char *dirna
 		{
 			transformed = transform(ent->d_name, udata);
 			final_name = transformed;
+			/* no need to free later on if the pointer is the same */
+			if(transformed == ent->d_name)
+				transformed = NULL;
 		}
 		else final_name = ent->d_name;
 
@@ -435,12 +481,13 @@ nnc_result nnc_vfs_link_directory(nnc_vfs_directory_node *dir, const char *dirna
 
 		/* TODO: ent->d_type is an extension which not all libcs support! */
 		unsigned char type = ent->d_type;
-		if(type == DT_UNKNOWN)
+		if(type == DT_UNKNOWN || type == DT_LNK)
 		{
 			struct stat st;
-			if(lstat(fnb.buf, &st) != 0)
+			/* we want to resolve the link */
+			if(stat(fnb.buf, &st) != 0)
 			{
-				ret = NNC_R_UNSUPPORTED;
+				ret = NNC_R_OS;
 				goto out;
 			}
 			if(S_ISDIR(st.st_mode))      type = DT_DIR;
@@ -456,6 +503,9 @@ nnc_result nnc_vfs_link_directory(nnc_vfs_directory_node *dir, const char *dirna
 			break;
 		case DT_REG:
 			nnc_vfs_add_file(dir, final_name, NNC_VFS_FILE(fnb.buf));
+			break;
+		/* anything that's not a file or directory we can safely ignore */
+		default:
 			break;
 		}
 
@@ -582,10 +632,10 @@ nnc_result nnc_copy(nnc_rstream *from, nnc_wstream *to, u32 *copied)
 {
 	u8 block[BLOCK_SZ];
 	u32 left = NNC_RS_PCALL0(from, size), next, actual;
-	if(copied) *copied = left;
 	result ret;
 	TRY(NNC_RS_PCALL(from, seek_abs, 0));
 
+	if(copied) *copied = left;
 	while(left != 0)
 	{
 		next = MIN(left, BLOCK_SZ);
@@ -594,13 +644,15 @@ nnc_result nnc_copy(nnc_rstream *from, nnc_wstream *to, u32 *copied)
 		TRY(NNC_WS_PCALL(to, write, block, next));
 		left -= next;
 	}
+
 	return NNC_R_OK;
 }
 
 nnc_result nnc_write_padding(nnc_wstream *self, nnc_u32 count)
 {
 	u8 buffer[4096];
-	memset(buffer, 0x00, sizeof(buffer));
+	/* if count < sizeof(buffer) it makes no sense to completely fill it with 0s */
+	memset(buffer, 0x00, MIN(count, sizeof(buffer)));
 
 	nnc_u32 left = count, to_do;
 	nnc_result ret;

@@ -4,6 +4,7 @@
  */
 #ifndef inc_nnc_exheader_h
 #define inc_nnc_exheader_h
+
 #include <nnc/stream.h>
 #include <nnc/base.h>
 NNC_BEGIN
@@ -136,7 +137,7 @@ typedef struct nnc_exheader {
 	nnc_exheader_codeseginfo ro;                                              ///< RO segment.
 	nnc_exheader_codeseginfo data;                                            ///< Data segment.
 	nnc_u32 bss_size;                                                         ///< BSS size.
-	nnc_u64 dependencies[NNC_MAX_DEPENDENCIES];                               ///< Title IDs of title dependencies, that is, these must be installed before launching the title, terminated by a '0' if smaller than \ref NNC_MAX_DEPENDENCIES.
+	nnc_u64 dependencies[NNC_MAX_DEPENDENCIES];                               ///< Title IDs of title dependencies, that is, these must be installed before launching the title, terminated by a '\0' if smaller than \ref NNC_MAX_DEPENDENCIES.
 	nnc_u64 savedata_size;                                                    ///< Size of the savedata.
 	nnc_u64 jump_id;                                                          ///< Jump ID.
 		/* ARM11 local system capabilities */

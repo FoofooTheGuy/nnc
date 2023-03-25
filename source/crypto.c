@@ -53,6 +53,38 @@ void nnc_crypto_sha256_free(nnc_sha256_incremental_hash self)
 	free(self);
 }
 
+static result hasher_writer_write(nnc_hasher_writer *self, u8 *buf, u32 size)
+{
+	u32 to_hash = self->lim ? MIN(self->lim - self->hashed, size) : size;
+	nnc_crypto_sha256_feed(self->hash, buf, to_hash);
+	self->hashed += to_hash;
+	return self->child->funcs->write(self->child, buf, size);
+}
+
+static result hasher_writer_wclose(nnc_hasher_writer *self) { nnc_crypto_sha256_free(self->hash); return NNC_R_OK; }
+static result hasher_writer_wtell(nnc_hasher_writer *self)  { return self->child->funcs->tell(self->child); }
+
+static const nnc_wstream_funcs hasher_writer_wfuncs = {
+	.write = (nnc_write_func)  hasher_writer_write,
+	.close = (nnc_wclose_func) hasher_writer_wclose,
+	.tell  = (nnc_wtell_func)  hasher_writer_wtell,
+};
+
+nnc_result nnc_open_hasher_writer(nnc_hasher_writer *self, nnc_wstream *child, nnc_u32 limit)
+{
+	self->funcs  = &hasher_writer_wfuncs;
+	self->child  = child;
+	self->lim    = limit;
+	self->hashed = 0;
+	return nnc_crypto_sha256_incremental(&self->hash);
+}
+
+void nnc_hasher_writer_digest(nnc_hasher_writer *self, nnc_sha256_hash digest)
+{
+	nnc_crypto_sha256_finish(self->hash, digest);
+	hasher_writer_wclose(self);
+}
+
 result nnc_crypto_sha256_part(nnc_rstream *rs, nnc_sha256_hash digest, u32 size)
 {
 	mbedtls_sha256_context ctx;
@@ -105,6 +137,13 @@ out:
 result nnc_crypto_sha256_stream(nnc_rstream *rs, nnc_sha256_hash digest)
 {
 	return nnc_crypto_sha256_part(rs, digest, NNC_RS_PCALL0(rs, size) - NNC_RS_PCALL0(rs, tell));
+}
+
+void nnc_crypto_sha256_buffer(nnc_u8 *data, nnc_u32 size, nnc_sha256_hash digest)
+{
+	nnc_memory mem;
+	nnc_mem_open(&mem, data, size);
+	nnc_crypto_sha256_stream(NNC_RSP(&mem), digest);
 }
 
 bool nnc_crypto_hasheq(nnc_sha256_hash a, nnc_sha256_hash b)

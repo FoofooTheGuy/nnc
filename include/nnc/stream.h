@@ -152,11 +152,28 @@ typedef struct nnc_wfile {
 	FILE *f;
 } nnc_wfile;
 
+typedef struct nnc_header_saver {
+	const nnc_wstream_funcs *funcs;
+	nnc_wstream *child;
+	nnc_u32 count, pos, start;
+	nnc_u8 *buffer;
+} nnc_header_saver;
+
 /** \brief       Opens a file for writing.
  *  \param self  Output write stream.
  *  \param name  Filename to open.
  */
 nnc_result nnc_wfile_open(nnc_wfile *self, const char *name);
+
+/** \brief        This stream saves the first few bytes of a write stream.
+ *  \param self   Output header saver.
+ *  \param child  Child stream that when written to the first `count` bytes are saved of.
+ *  \param count  Amount of header bytes to save.
+ *  \note         The buffered data is freed when this stream is closed.
+ *  \note         This stream only supports seeking if the child stream does too.
+ *  \note         The start of the header is determined to be the current position in the write stream.
+ */
+nnc_result nnc_open_header_saver(nnc_header_saver *self, nnc_wstream *child, nnc_u32 count);
 
 /** \} */
 
@@ -241,7 +258,7 @@ nnc_result nnc_vfs_add_directory(nnc_vfs_directory_node *dir, const char *vname,
  *  \param dir        The directory to link into.
  *  \param dirname    The real directory path to link.
  *  \param transform  This function is responsible for transforming the real names of files and directories in the linked directory.\n
- *                    This function must return a new heap allocated string, or, to not add the file, NULL.\n
+ *                    This function must return a new heap allocated string, the original input string, or, to not add the file, NULL.\n
  *                    To do no transformations at all (identity map) pass \ref nnc_vfs_identity_transform instead.\n
  *                    The prototype of this callback is `char *transform(const char *original_name, void *udata);`
  *  \param udata      This pointer will be passed to all calls of `transform` as the `udata` parameter.

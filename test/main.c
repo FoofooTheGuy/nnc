@@ -33,7 +33,6 @@ int ncch_info_main(int argc, char *argv[]); /* ncch.c */
 int exheader_main(int argc, char *argv[]); /* exheader.c */
 int tmd_info_main(int argc, char *argv[]); /* tmd.c */
 int xromfs_main(int argc, char *argv[]); /* romfs.c */
-int bromfs_main(int argc, char *argv[]); /* romfs.c */
 int romfs_main(int argc, char *argv[]); /* romfs.c */
 int smdh_main(int argc, char *argv[]); /* smdh.c */
 int u128_main(int argc, char *argv[]); /* u128.c */
@@ -41,6 +40,7 @@ int tik_main(int argc, char *argv[]); /* tik.c */
 int cia_main(int argc, char *argv[]); /* cia.c */
 
 int build_exefs_main(int argc, char *argv[]); /* exefs.c */
+int bromfs_main(int argc, char *argv[]); /* romfs.c */
 
 static int build_main(int argc, char *argv[])
 {

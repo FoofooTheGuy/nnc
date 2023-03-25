@@ -81,6 +81,13 @@ typedef struct nnc_keypair {
 /** An opaque struct to handle incremental hashing */
 typedef void *nnc_sha256_incremental_hash;
 
+typedef struct nnc_hasher_writer {
+	const nnc_wstream_funcs *funcs;
+	nnc_sha256_incremental_hash hash;
+	nnc_wstream *child;
+	nnc_u32 lim, hashed;
+} nnc_hasher_writer;
+
 /** \brief An enumeration containing the possible (builtin) keysets */
 enum nnc_keyset_selector {
 	NNC_KEYSET_RETAIL,
@@ -122,6 +129,21 @@ void nnc_crypto_sha256_reset(nnc_sha256_incremental_hash self);
  */
 void nnc_crypto_sha256_free(nnc_sha256_incremental_hash self);
 
+/** \brief        Open a hasher writer: the stream form of incremental hashing.
+ *  \param self   Output hasher writer.
+ *  \param child  Child write stream.
+ *  \param limit  Maximum amount of bytes to write.
+ *  \note         This stream does not support seeking. If something like hashing the header is
+ *                required #nnc_header_saver in combination with #nnc_crypto_sha256_buffer is normally used.
+ */
+nnc_result nnc_open_hasher_writer(nnc_hasher_writer *self, nnc_wstream *child, nnc_u32 limit);
+
+/** \brief         Output the digest of a hasher writer and close it.
+ *  \param self    Hasher write to close and get digets of.
+ *  \param digest  Output digest.
+ */
+void nnc_hasher_writer_digest(nnc_hasher_writer *self, nnc_sha256_hash digest);
+
 /** \} */
 
 /** \brief         Hash a \ref nnc_rstream partly.
@@ -140,6 +162,13 @@ nnc_result nnc_crypto_sha256_part(nnc_rstream *rs, nnc_sha256_hash digest, nnc_u
  *  Anything \ref nnc_crypto_sha256_part can return.
  */
 nnc_result nnc_crypto_sha256_stream(nnc_rstream *rs, nnc_sha256_hash digest);
+
+/** \brief         Hash a buffer.
+ *  \param data    Data pointer.
+ *  \param size    Data size.
+ *  \param digest  Output digest.
+ */
+void nnc_crypto_sha256_buffer(nnc_u8 *data, nnc_u32 size, nnc_sha256_hash digest);
 
 /** \brief         Hash a \ref nnc_rstream partly. Most formats use sha256; you probably don't need to use this.
  *  \param rs      Stream to hash.

@@ -19,6 +19,8 @@ NNC_BEGIN
 
 /** Media units to bytes. */
 #define NNC_MU_TO_BYTE(a) ((a) * NNC_MEDIA_UNIT)
+/** Bytes to media units. */
+#define NNC_BYTE_TO_MU(a) (ALIGN(a, NNC_MEDIA_UNIT) / NNC_MEDIA_UNIT)
 /** Amount of bytes in a media unit. */
 #define NNC_MEDIA_UNIT 0x200
 
@@ -61,6 +63,7 @@ enum nnc_result_codes {
 	NNC_R_FAIL_WRITE,      ///< Failed to write.
 	NNC_R_NOT_OPEN,        ///< File not open.
 	NNC_R_OPEN,            ///< File open.
+	NNC_R_OS,              ///< Generic operating system error.
 };
 
 enum nnc_tid_category {

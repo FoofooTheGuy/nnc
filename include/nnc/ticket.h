@@ -38,7 +38,7 @@ typedef struct nnc_ticket {
 	nnc_u8 limits[0x40];      ///< Limits.
 } nnc_ticket;
 
-/** \brief      Reads a ticket
+/** \brief      Reads a ticket.
  *  \param rs   Stream to read from.
  *  \param tik  Output ticket.
  *  \returns
@@ -47,6 +47,10 @@ typedef struct nnc_ticket {
  */
 nnc_result nnc_read_ticket(nnc_rstream *rs, nnc_ticket *tik);
 
+/** \brief      Writes a ticket.
+ *  \param tik  Ticket to write.
+ *  \param ws   Output write stream.
+ */
 nnc_result nnc_write_ticket(nnc_ticket *tik, nnc_wstream *ws);
 
 /** \brief         Hashes part of the ticket required for \ref nnc_verify_signature.

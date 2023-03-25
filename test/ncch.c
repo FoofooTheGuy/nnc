@@ -211,6 +211,7 @@ int ncch_info_main(int argc, char *argv[])
 		}
 		NNC_RS_CALL0(section, close);
 	}
+	else puts(" (failed to read)");
 
 	printf(" RomFS Block0                 : ");
 	if(!(header.flags & NNC_NCCH_NO_CRYPTO) && !crypt)
