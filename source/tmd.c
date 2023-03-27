@@ -207,3 +207,9 @@ result nnc_write_tmd(nnc_tmd_header *tmd, nnc_chunk_record *records, u16 numreco
 	return NNC_R_OK;
 }
 
+nnc_u32 nnc_calculate_tmd_size(u16 content_count, enum nnc_sigtype sig_type)
+{
+	/* signature, issuer, header, content info records, content chunk records */
+	return nnc_sig_size(sig_type) + 0x40 + 0x84 + 0x24 * 64 + 0x30 * content_count;
+}
+

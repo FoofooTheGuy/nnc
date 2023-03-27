@@ -115,6 +115,20 @@ nnc_result nnc_read_tmd_chunk_records(nnc_rstream *rs, nnc_tmd_header *tmd, nnc_
  */
 nnc_result nnc_tmd_signature_hash(nnc_rstream *rs, nnc_tmd_header *tmd, nnc_sha_hash digest);
 
+/** \brief             Write a TMD.
+ *  \param tmd         TMD header to write.
+ *  \param records     Records to write.
+ *  \param numrecords  Amount of records.
+ *  \param ws          Output write stream.
+ */
+nnc_result nnc_write_tmd(nnc_tmd_header *tmd, nnc_chunk_record *records, nnc_u16 numrecords, nnc_wstream *ws);
+
+/** \brief                Calculates the size of a TMD, without building it.
+ *  \param content_count  The amount of contents this TMD will have.
+ *  \param sig_type       The signature type this TMD will have.
+ */
+nnc_u32 nnc_calculate_tmd_size(nnc_u16 content_count, enum nnc_sigtype sig_type);
+
 NNC_END
 #endif
 
