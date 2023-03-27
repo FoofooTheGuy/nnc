@@ -139,10 +139,17 @@ void nnc_crypto_sha256_free(nnc_sha256_incremental_hash self);
 nnc_result nnc_open_hasher_writer(nnc_hasher_writer *self, nnc_wstream *child, nnc_u32 limit);
 
 /** \brief         Output the digest of a hasher writer and close it.
- *  \param self    Hasher write to close and get digets of.
+ *  \param self    Hasher writer to get the digest of and close.
  *  \param digest  Output digest.
  */
 void nnc_hasher_writer_digest(nnc_hasher_writer *self, nnc_sha256_hash digest);
+
+/** \brief         Output the digest of a hasher writer and reset it.
+ *  \param self    Hasher writer to get the digest of and reset.
+ *  \param digest  Output digest.
+ */
+void nnc_hasher_writer_digest_reset(nnc_hasher_writer *self, nnc_sha256_hash digest);
+
 
 /** \} */
 

@@ -10,12 +10,13 @@
 NNC_BEGIN
 
 enum nnc_sigtype {
-	NNC_SIG_RSA_4096_SHA1   = 0, ///< RSA 4096 with SHA1 (unused).
-	NNC_SIG_RSA_2048_SHA1   = 1, ///< RSA 2048 with SHA1 (unused).
-	NNC_SIG_ECDSA_SHA1      = 2, ///< Elliptic Curve with SHA1 (unused).
-	NNC_SIG_RSA_4096_SHA256 = 3, ///< RSA 4096 with SHA256.
-	NNC_SIG_RSA_2048_SHA256 = 4, ///< RSA 2048 with SHA256.
-	NNC_SIG_ECDSA_SHA256    = 5, ///< Elliptic Curve with SHA256.
+	NNC_SIG_RSA_4096_SHA1   = 0,   ///< RSA 4096 with SHA1 (unused for 3DS).
+	NNC_SIG_RSA_2048_SHA1   = 1,   ///< RSA 2048 with SHA1 (unused for 3DS).
+	NNC_SIG_ECDSA_SHA1      = 2,   ///< Elliptic Curve with SHA1 (unused for 3DS).
+	NNC_SIG_RSA_4096_SHA256 = 3,   ///< RSA 4096 with SHA256.
+	NNC_SIG_RSA_2048_SHA256 = 4,   ///< RSA 2048 with SHA256.
+	NNC_SIG_ECDSA_SHA256    = 5,   ///< Elliptic Curve with SHA256.
+	NNC_SIG_NONE            = 255, ///< Value used (only) by nnc to write an empty signature.
 };
 
 typedef struct nnc_signature {
@@ -57,12 +58,14 @@ typedef struct nnc_certchain {
 /** \brief      Gets the signature size from the type.
  *  \return     Returns total signature size (<u>including</u> the 4 identifying bytes), <u>not</u> including the issuer (size=0x40) or 0 if invalid.
  *  \param sig  Signature type.
+ *  \note       If `sig` is NNC_SIG_NONE This function returns the amount of bytes that nulled signature will take up (still without the issuer).
  */
 nnc_u16 nnc_sig_size(enum nnc_sigtype sig);
 
 /** \brief      Gets the size of the signature data field for \p type.
  *  \return     Size of \ref nnc_signature::data or 0 if invalid.
  *  \param sig  Signature type
+ *  \note       This function returns 0 with NNC_SIG_NONE as there is no data.
  */
 nnc_u16 nnc_sig_dsize(enum nnc_sigtype sig);
 

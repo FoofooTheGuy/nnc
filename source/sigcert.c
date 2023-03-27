@@ -18,10 +18,12 @@
 
 static u16 size_lut[0x6] = { 0x200, 0x100, 0x3C, 0x200, 0x100, 0x3C };
 static u16 pad_lut[0x6]  = { 0x3C,  0x3C,  0x40, 0x3C,  0x3C,  0x40 };
+#define SIG_NONE_SIZE 0x240
 
 
 u16 nnc_sig_size(enum nnc_sigtype sig)
 {
+	if(sig == NNC_SIG_NONE) return SIG_NONE_SIZE;
 	if(sig > SIGN_MAX) return 0;
 	return size_lut[sig] + pad_lut[sig] + 0x04;
 }
@@ -53,6 +55,13 @@ result nnc_read_sig(rstream *rs, nnc_signature *sig)
 
 nnc_result nnc_write_sig(nnc_signature *sig, nnc_wstream *ws)
 {
+	if(sig->type == NNC_SIG_NONE)
+	{
+		u8 data[SIG_NONE_SIZE + 0x40 /* + issuer */];
+		memset(data, 0x00, sizeof(data));
+		data[0x01] = 1; /* absolutely required... */
+		return NNC_WS_PCALL(ws, write, data, sizeof(data));
+	}
 	if(sig->type > SIGN_MAX) return NNC_R_INVALID_SIG;
 	u8 data[0x240 + 0x40];
 	data[0] = 0x00;
@@ -83,6 +92,8 @@ const char *nnc_sigstr(enum nnc_sigtype sig)
 		return "RSA 2048 - SHA256";
 	case NNC_SIG_ECDSA_SHA256:
 		return "Elliptic Curve - SHA256";
+	case NNC_SIG_NONE:
+		return "No Signature - NULL";
 	}
 	return NULL;
 }
@@ -196,6 +207,8 @@ nnc_result nnc_sighash(nnc_rstream *rs, enum nnc_sigtype sig, nnc_sha_hash diges
 	case NNC_SIG_RSA_2048_SHA256:
 	case NNC_SIG_ECDSA_SHA256:
 		return nnc_crypto_sha256_part(rs, digest, size);
+	case NNC_SIG_NONE:
+		break;
 	}
 	return NNC_R_INVALID_SIG;
 }
