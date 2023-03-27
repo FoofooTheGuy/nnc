@@ -145,3 +145,57 @@ int cia_main(int argc, char *argv[])
 	return 0;
 }
 
+#define MUST(expr, msg) if((res = ( expr )) != NNC_R_OK) die("%s: " msg ": %s", argv[0], nnc_strerror(res))
+
+int rewrite_cia_main(int argc, char *argv[])
+{
+	if(argc != 3) die("usage: %s <cia-file> <output-cia-file>", argv[0]);
+	const char *cia_file = argv[1];
+	const char *output = argv[2];
+
+	nnc_cia_content_reader reader;
+	nnc_cia_content_stream *streams;
+	nnc_cia_writable_ncch *ncchs;
+	nnc_subview certchain, ticket, tmd;
+	nnc_tmd_header tmdhdr;
+	nnc_cia_header hdr;
+	nnc_wfile ocia;
+	nnc_file cia;
+	nnc_result res;
+	nnc_u32 i, j = 0;
+
+	MUST(nnc_file_open(&cia, cia_file), "open cia");
+	MUST(nnc_read_cia_header(NNC_RSP(&cia), &hdr), "parse cia header");
+	nnc_cia_open_certchain(&hdr, NNC_RSP(&cia), &certchain);
+	nnc_cia_open_ticket(&hdr, NNC_RSP(&cia), &ticket);
+	nnc_cia_open_tmd(&hdr, NNC_RSP(&cia), &tmd);
+	MUST(nnc_read_tmd_header(NNC_RSP(&tmd), &tmdhdr), "parse tmd header");
+	MUST(nnc_wfile_open(&ocia, output), "open output");
+	MUST(nnc_cia_make_reader(&hdr, NNC_RSP(&cia), nnc_get_default_keyset(), &reader), "make content reader");
+	streams = malloc(sizeof(*streams) * reader.content_count);
+	ncchs = malloc(sizeof(*ncchs) * reader.content_count);
+
+	NNC_FOREACH_CINDEX(i, hdr.content_index)
+	{
+		MUST(nnc_cia_open_content(&reader, i, &streams[j], NULL), "open content");
+		ncchs[j].ncch = &streams[j];
+		ncchs[j].type = NNC_CIA_NCCHBUILD_STREAM;
+		++j;
+	}
+
+	MUST(nnc_write_cia(
+		NNC_CIA_WF_CERTCHAIN_STREAM | NNC_CIA_WF_TICKET_STREAM | NNC_CIA_WF_TMD_BUILD,
+		&certchain, &ticket, &tmdhdr, j, ncchs, NNC_WSP(&ocia)
+	), "write cia");
+	MUST(NNC_WS_CALL0(ocia, close), "close cia");
+
+	nnc_cia_free_reader(&reader);
+	NNC_RS_CALL0(cia, close);
+	for(nnc_u32 i = 0; i < j; ++i)
+		NNC_RS_CALL0(streams[i], close);
+	free(streams);
+	free(ncchs);
+
+	return 0;
+}
+

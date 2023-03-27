@@ -85,6 +85,13 @@ void nnc_hasher_writer_digest(nnc_hasher_writer *self, nnc_sha256_hash digest)
 	hasher_writer_wclose(self);
 }
 
+void nnc_hasher_writer_digest_reset(nnc_hasher_writer *self, nnc_sha256_hash digest)
+{
+	nnc_crypto_sha256_finish(self->hash, digest);
+	nnc_crypto_sha256_reset(self->hash);
+}
+
+
 result nnc_crypto_sha256_part(nnc_rstream *rs, nnc_sha256_hash digest, u32 size)
 {
 	mbedtls_sha256_context ctx;

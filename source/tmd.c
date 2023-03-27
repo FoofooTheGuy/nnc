@@ -201,10 +201,12 @@ result nnc_write_tmd(nnc_tmd_header *tmd, nnc_chunk_record *records, u16 numreco
 	U16P(&header[0x62]) = 0; /* padding */
 	nnc_crypto_sha256(cinfo, &header[0x64], CINFO_SIZE);
 
-	TRY(NNC_WS_PCALL(ws, write, header, sizeof(header)));
-	TRY(NNC_WS_PCALL(ws, write, (u8 *) recdata, reclen));
+	TRYLBL(NNC_WS_PCALL(ws, write, header, sizeof(header)), out);
+	TRYLBL(NNC_WS_PCALL(ws, write, (u8 *) recdata, reclen), out);
 
-	return NNC_R_OK;
+out:
+	free(recdata);
+	return ret;
 }
 
 nnc_u32 nnc_calculate_tmd_size(u16 content_count, enum nnc_sigtype sig_type)

@@ -55,7 +55,7 @@ int tmd_info_main(int argc, char *argv[])
 	nnc_chunk_record curecords[CUREC_SIZE];
 	nnc_result res;
 	if((res = nnc_read_tmd_header(NNC_RSP(&f), &tmd)) != NNC_R_OK)
-		die("nnc_read_tmd_header() failed: %i", res);
+		die("nnc_read_tmd_header() failed: %s", nnc_strerror(res));
 	if(nnc_read_tmd_info_records(NNC_RSP(&f), &tmd, cirecords) != NNC_R_OK)
 		die("nnc_read_tmd_info_records() failed");
 	if(tmd.content_count > CUREC_SIZE)

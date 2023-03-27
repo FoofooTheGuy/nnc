@@ -7,6 +7,7 @@
 
 #include <nnc/stream.h>
 #include <nnc/crypto.h>
+#include <nnc/ncch.h>
 #include <nnc/base.h>
 #include <nnc/tmd.h>
 NNC_BEGIN
@@ -51,6 +52,31 @@ typedef struct nnc_cia_content_reader {
 	nnc_u8 key[0x10];
 	nnc_rstream *rs;
 } nnc_cia_content_reader;
+
+typedef void* nnc_certchain_or_stream;
+typedef void* nnc_ticket_or_stream;
+typedef void* nnc_ncch_or_stream;
+typedef void* nnc_tmd_or_stream;
+
+enum nnc_cia_ncch_build_type {
+	NNC_CIA_NCCHBUILD_NONE   = 0, ///< No NCCH; skip the index and go to the next one.
+	NNC_CIA_NCCHBUILD_STREAM = 1, ///< Read the NCCH data from a stream.
+	NNC_CIA_NCCHBUILD_BUILD  = 2, ///< Read the NCCH data from a #nnc_buildable_ncch struct.
+};
+
+typedef struct nnc_cia_writable_ncch {
+	nnc_ncch_or_stream ncch;
+	nnc_u8 type;
+} nnc_cia_writable_ncch;
+
+enum nnc_cia_wflags {
+	NNC_CIA_WF_CERTCHAIN_BUILD  = 1,   ///< Build a certificate chain.
+	NNC_CIA_WF_CERTCHAIN_STREAM = 2,   ///< Copy a certificate chain from a read stream.
+	NNC_CIA_WF_TICKET_BUILD     = 4,   ///< Build a ticket.
+	NNC_CIA_WF_TICKET_STREAM    = 8,   ///< Copy a ticket from a read stream.
+	NNC_CIA_WF_TMD_BUILD        = 16,  ///< Build a TMD, including the calculation of hashes.
+	NNC_CIA_WF_TMD_STREAM       = 32,  ///< Copy a TMD from a read stream.
+};
 
 /** A pseudo-stream to hold all possible required streams, yet still
  *  usable like all other streams with \ref NNC_RSP */
@@ -145,6 +171,25 @@ void nnc_cia_free_reader(nnc_cia_content_reader *reader);
  */
 void nnc_cia_get_iv(nnc_u8 iv[0x10], nnc_u16 index);
 
+/** \brief                  Write a CIA container.
+ *  \param wflags           Write flags, see #nnc_cia_wflags.
+ *  \param certchain        Certificate chain parameter, see #nnc_cia_wflags.
+ *  \param ticket           Ticket parameter, see #nnc_cia_wflags.
+ *  \param tmd              TMD parameter, see #nnc_cia_wflags.
+ *  \param amount_contents  Amount of contents in this CIA.
+ *  \param contents         Writable NCCH contents to put in the CIA container.
+ *  \param ws               Output write stream.
+ *  \warning                If you use a stream for `tmd` you must ensure yourself that this TMD describes the rest of the contents.
+ */
+nnc_result nnc_write_cia(
+	nnc_u8 wflags,
+	nnc_certchain_or_stream certchain,
+	nnc_ticket_or_stream ticket,
+	nnc_tmd_or_stream tmd,
+	nnc_u16 amount_contents,
+	nnc_cia_writable_ncch *contents,
+	nnc_wstream *ws
+);
 
 NNC_END
 #endif

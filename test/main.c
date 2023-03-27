@@ -29,6 +29,7 @@ void print_hash(unsigned char *b)
 
 
 int extract_exefs_main(int argc, char *argv[]); /* exefs.c */
+int rewrite_cia_main(int argc, char *argv[]); /* cia.c */
 int ncch_info_main(int argc, char *argv[]); /* ncch.c */
 int exheader_main(int argc, char *argv[]); /* exheader.c */
 int tmd_info_main(int argc, char *argv[]); /* tmd.c */
@@ -72,6 +73,7 @@ int main(int argc, char *argv[])
 	CASE("test-u128", u128_main);
 	CASE("tik-info", tik_main);
 	CASE("cia-unpack", cia_main);
+	CASE("rewrite-cia", rewrite_cia_main);
 	CASE("build", build_main);
 #undef CASE
 	DIE_USAGE();
