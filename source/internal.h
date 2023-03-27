@@ -64,6 +64,8 @@
 #define ALIGN_DOWN(a, n)   (((a) & ~((n) - 1)))             /* N.B.: `a' must be a power of 2! */
 #define IS_UNALIGNED(a, n) ((a) & ((n) - 1))                /* N.B.: `a' must be a power of 2! */
 
+#define NNC_BYTE_TO_MU(a) (ALIGN(a, NNC_MEDIA_UNIT) / NNC_MEDIA_UNIT)
+
 #ifndef BSWAP_BUILTIN
 nnc_u16 nnc_bswap16(nnc_u16 a);
 nnc_u32 nnc_bswap32(nnc_u32 a);

@@ -19,8 +19,6 @@ NNC_BEGIN
 
 /** Media units to bytes. */
 #define NNC_MU_TO_BYTE(a) ((a) * NNC_MEDIA_UNIT)
-/** Bytes to media units. */
-#define NNC_BYTE_TO_MU(a) (ALIGN(a, NNC_MEDIA_UNIT) / NNC_MEDIA_UNIT)
 /** Amount of bytes in a media unit. */
 #define NNC_MEDIA_UNIT 0x200
 
