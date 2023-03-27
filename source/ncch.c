@@ -161,14 +161,24 @@ nnc_result nnc_ncch_section_logo(nnc_ncch_header *ncch, nnc_rstream *rs,
 	return 0;
 }
 
+void nnc_condense_ncch(nnc_condensed_ncch_header *cnd, nnc_ncch_header *hdr)
+{
+	cnd->partition_id = hdr->partition_id;
+	cnd->title_id = hdr->title_id;
+	cnd->platform = hdr->platform;
+	cnd->type = hdr->type;
+	strncpy(cnd->product_code, hdr->product_code, sizeof(cnd->product_code));
+	strncpy(cnd->maker_code, hdr->maker_code, sizeof(hdr->maker_code));
+}
+
 nnc_result nnc_write_ncch(
-	nnc_ncch_header *ncch_header,
+	nnc_condensed_ncch_header *ncch_header,
 	nnc_u8 wflags,
 	nnc_exheader_or_stream exheader,
 	nnc_rstream *logo,
 	nnc_rstream *plain,
-	nnc_vfs_or_stream_or_voidp exefs,
-	nnc_vfs_or_stream_or_voidp romfs,
+	nnc_vfs_or_stream exefs,
+	nnc_vfs_or_stream romfs,
 	nnc_wstream *ws)
 {
 	result ret;
@@ -176,10 +186,16 @@ nnc_result nnc_write_ncch(
 	nnc_sha256_hash exheader_hash, logo_hash, exefs_super_hash, romfs_super_hash;
 	nnc_hasher_writer hwrite;
 	nnc_header_saver hsaver;
-	u8 header[0x200];
+	u8 header[0x200], exheader_in_use = 0;
 
 	if(!ws->funcs->seek)
 		return NNC_R_INVAL;
+
+#define DO_VALIDATE_FOR(ptr, opt1, opt2) if( (!ptr && (wflags & (opt1 | opt2))) || (ptr && !(wflags & (opt1 | opt2))) || (wflags & (opt1 | opt2)) == (opt1 | opt2)) return NNC_R_INVAL
+	DO_VALIDATE_FOR(exheader, NNC_NCCH_WF_EXHEADER_BUILD, NNC_NCCH_WF_EXHEADER_STREAM);
+	DO_VALIDATE_FOR(romfs, NNC_NCCH_WF_ROMFS_VFS, NNC_NCCH_WF_ROMFS_STREAM);
+	DO_VALIDATE_FOR(exefs, NNC_NCCH_WF_EXEFS_VFS, NNC_NCCH_WF_EXEFS_STREAM);
+#undef DO_VALIDATE_FOR
 
 	memset(&exheader_hash, 0x00, sizeof(exheader_hash));
 	memset(&logo_hash, 0x00, sizeof(logo_hash));
@@ -191,16 +207,20 @@ nnc_result nnc_write_ncch(
 	/* the exheader resides directly after the header */
 	TRY(nnc_write_padding(ws, EXHEADER_OFFSET));
 
-	if(wflags & NNC_NCCH_WF_EXHEADER_WRITE)
-		return NNC_R_UNSUPPORTED; /* unsupported for now */
-	else
+	if(exheader)
 	{
-		if(NNC_RS_PCALL0(exheader.stream, size) != EXHEADER_FULL_SIZE)
-			return NNC_R_INVAL;
-		TRY(nnc_open_hasher_writer(&hwrite, ws, EXHEADER_NCCH_SIZE));
-		ret = nnc_copy(exheader.stream, NNC_WSP(&hwrite), NULL);
-		nnc_hasher_writer_digest(&hwrite, exheader_hash);
-		if(ret != NNC_R_OK) return ret;
+		if(wflags & NNC_NCCH_WF_EXHEADER_BUILD)
+			return NNC_R_UNSUPPORTED; /* unsupported for now */
+		else
+		{
+			if(NNC_RS_PCALL0((nnc_rstream *) exheader, size) != EXHEADER_FULL_SIZE)
+				return NNC_R_INVAL;
+			TRY(nnc_open_hasher_writer(&hwrite, ws, EXHEADER_NCCH_SIZE));
+			ret = nnc_copy((nnc_rstream *) exheader, NNC_WSP(&hwrite), NULL);
+			nnc_hasher_writer_digest(&hwrite, exheader_hash);
+			if(ret != NNC_R_OK) return ret;
+		}
+		exheader_in_use = 1;
 	}
 
 	if(logo)
@@ -223,13 +243,13 @@ nnc_result nnc_write_ncch(
 		if(plain_size == 0) plain_off = 0;
 	}
 
-	if(exefs.voidp)
+	if(exefs)
 	{
 		exefs_off = NNC_WS_PCALL0(ws, tell);
 		if(wflags & NNC_NCCH_WF_EXEFS_VFS)
 		{
 			TRY(nnc_open_header_saver(&hsaver, ws, NNC_MEDIA_UNIT));
-			ret = nnc_write_exefs(exefs.vfs, NNC_WSP(&hsaver));
+			ret = nnc_write_exefs((nnc_vfs *) exefs, NNC_WSP(&hsaver));
 			exefs_size = NNC_WS_PCALL0(ws, tell) - exefs_off;
 			if(exefs_size >= NNC_MEDIA_UNIT)
 				nnc_crypto_sha256_buffer(hsaver.buffer, NNC_MEDIA_UNIT, exefs_super_hash);
@@ -240,23 +260,23 @@ nnc_result nnc_write_ncch(
 		}
 		else
 		{
-			if((exefs_size = NNC_RS_PCALL0(exefs.stream, size)) < NNC_MEDIA_UNIT)
+			if((exefs_size = NNC_RS_PCALL0((nnc_rstream *) exefs, size)) < NNC_MEDIA_UNIT)
 				return NNC_R_INVAL; /* a valid ExeFS has at least NNC_MEDIA_UNIT bytes */
 			TRY(nnc_open_hasher_writer(&hwrite, ws, NNC_MEDIA_UNIT));
-			ret = nnc_copy(exefs.stream, NNC_WSP(&hwrite), NULL);
+			ret = nnc_copy((nnc_rstream *) exefs, NNC_WSP(&hwrite), NULL);
 			nnc_hasher_writer_digest(&hwrite, exefs_super_hash);
 			if(ret != NNC_R_OK) return ret;
 		}
 		TRY(nnc_write_padding(ws, ALIGN(exefs_size, NNC_MEDIA_UNIT) - exefs_size));
 	}
 
-	if(romfs.voidp)
+	if(romfs)
 	{
 		romfs_off = NNC_WS_PCALL0(ws, tell);
 		if(wflags & NNC_NCCH_WF_ROMFS_VFS)
 		{
 			TRY(nnc_open_header_saver(&hsaver, ws, NNC_MEDIA_UNIT));
-			ret = nnc_write_romfs(romfs.vfs, NNC_WSP(&hsaver));
+			ret = nnc_write_romfs((nnc_vfs *) romfs, NNC_WSP(&hsaver));
 			romfs_size = NNC_WS_PCALL0(ws, tell) - romfs_off;
 			if(romfs_size >= NNC_MEDIA_UNIT)
 				nnc_crypto_sha256_buffer(hsaver.buffer, NNC_MEDIA_UNIT, romfs_super_hash);
@@ -267,10 +287,10 @@ nnc_result nnc_write_ncch(
 		}
 		else
 		{
-			if((romfs_size = NNC_RS_PCALL0(romfs.stream, size)) < NNC_MEDIA_UNIT)
+			if((romfs_size = NNC_RS_PCALL0((nnc_rstream *) romfs, size)) < NNC_MEDIA_UNIT)
 				return NNC_R_INVAL; /* a valid RomFS has at least NNC_MEDIA_UNIT bytes */
 			TRY(nnc_open_hasher_writer(&hwrite, ws, NNC_MEDIA_UNIT));
-			ret = nnc_copy(romfs.stream, NNC_WSP(&hwrite), NULL);
+			ret = nnc_copy((nnc_rstream *) romfs, NNC_WSP(&hwrite), NULL);
 			nnc_hasher_writer_digest(&hwrite, romfs_super_hash);
 			if(ret != NNC_R_OK) return ret;
 		}
@@ -294,7 +314,7 @@ nnc_result nnc_write_ncch(
 
 	char product_code[0x10 + 1];
 	memset(product_code, 0x00, sizeof(product_code));
-	strcpy(product_code, ncch_header->product_code);
+	strncpy(product_code, ncch_header->product_code, sizeof(product_code));
 
 	/* 0x000 */ memset(&header[0x000], 0x00, 0x100);
 	/* 0x100 */ memcpy(&header[0x100], "NCCH", 4);
@@ -308,7 +328,7 @@ nnc_result nnc_write_ncch(
 	/* 0x130 */ memcpy(&header[0x130], logo_hash, 0x20); /* logo region hash */
 	/* 0x150 */ memcpy(&header[0x150], product_code, 0x10);
 	/* 0x160 */ memcpy(&header[0x160], exheader_hash, 0x20); /* exheader region hash (initial 0x400) */
-	/* 0x180 */ U32P(&header[0x180]) = LE32(EXHEADER_NCCH_SIZE); /* "exheader size," but better named "exheader hash size" */
+	/* 0x180 */ U32P(&header[0x180]) = exheader_in_use ? LE32(EXHEADER_NCCH_SIZE) : 0; /* "exheader size," but better named "exheader hash size" */
 	/* 0x184 */ U32P(&header[0x184]) = 0; /* reserved */
 	/* 0x188 */ header[0x188] = 0; /* ncchflags[0] */
 	/* 0x189 */ header[0x189] = 0; /* ncchflags[1] */
