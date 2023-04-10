@@ -411,7 +411,11 @@ int fnbuild_setbase(struct filename_builder *builder, const char *base)
 	builder->buf = malloc(builder->alloc);
 	if(!builder->buf) return 0;
 	memcpy(builder->buf, base, len);
+#if NNC_PLATFORM_WINDOWS
+	builder->buf[len] = '\\';
+#else
 	builder->buf[len] = '/';
+#endif
 	return 1;
 }
 
@@ -436,7 +440,6 @@ int fnbuild(struct filename_builder *builder, const char *newbit)
 	memcpy(builder->buf + builder->basepos, newbit, len);
 	return 1;
 }
-
 
 nnc_result nnc_vfs_link_directory(nnc_vfs_directory_node *dir, const char *dirname, char *(*transform)(const char *, void *), void *udata)
 {
@@ -477,7 +480,10 @@ nnc_result nnc_vfs_link_directory(nnc_vfs_directory_node *dir, const char *dirna
 		if(!final_name) continue;
 
 		if(!fnbuild(&fnb, ent->d_name))
+		{
+			ret = NNC_R_NOMEM;
 			goto out;
+		}
 
 		/* TODO: ent->d_type is an extension which not all libcs support! */
 		unsigned char type = ent->d_type;
@@ -502,7 +508,7 @@ nnc_result nnc_vfs_link_directory(nnc_vfs_directory_node *dir, const char *dirna
 			TRYLBL(nnc_vfs_link_directory(deeper_dir, fnb.buf, transform, udata), out);
 			break;
 		case DT_REG:
-			nnc_vfs_add_file(dir, final_name, NNC_VFS_FILE(fnb.buf));
+			TRYLBL(nnc_vfs_add_file(dir, final_name, NNC_VFS_FILE(fnb.buf)), out);
 			break;
 		/* anything that's not a file or directory we can safely ignore */
 		default:
@@ -512,15 +518,72 @@ nnc_result nnc_vfs_link_directory(nnc_vfs_directory_node *dir, const char *dirna
 		free(transformed);
 		transformed = NULL;
 	}
+#elif WINDOWS_API
+	WIN32_FIND_DATA ffd;
+	HANDLE hFind = INVALID_HANDLE_VALUE;
+
+	/* just windows things */
+	if(!fnbuild(&fnb, "\\*"))
+	{
+		fnbuild_free(&fnb);
+		return NNC_R_NOMEM;
+	}
+
+	hFind = FindFirstFileA(fnb.buf, &ffd);
+	if(hFind == INVALID_HANDLE_VALUE)
+	{
+		fnbuild_free(&fnb);
+		return NNC_R_FAIL_OPEN;
+	}
+
+	do {
+		if(strcmp(ffd.cFileName, ".") == 0 || strcmp(ffd.cFileName, "..") == 0)
+			continue; /* these need to be skipped */
+
+		if(transform)
+		{
+			transformed = transform(ffd.cFileName, udata);
+			final_name = transformed;
+			/* no need to free later on if the pointer is the same */
+			if(transformed == ffd.cFileName)
+				transformed = NULL;
+		}
+		else final_name = ffd.cFileName;
+
+		/* transform() returning NULL means to skip this file */
+		if(!final_name) continue;
+
+		if(!fnbuild(&fnb, ffd.cFileName))
+		{
+			ret = NNC_R_NOMEM;
+			goto out;
+		}
+
+		if(ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		{
+			TRYLBL(nnc_vfs_add_directory(dir, final_name, &deeper_dir), out);
+			TRYLBL(nnc_vfs_link_directory(deeper_dir, fnb.buf, transform, udata), out);
+		}
+		else /* file */
+		{
+			TRYLBL(nnc_vfs_add_file(dir, final_name, NNC_VFS_FILE(fnb.buf)), out);
+		}
+	} while(FindNextFileA(hFind, &ffd) != 0);
+
+	if(GetLastError() != ERROR_NO_MORE_FILES)
+		ret = NNC_R_FAIL_READ;
 #else
-	/* TODO: Support this function on windows as well */
 	ret = NNC_R_UNSUPPORTED;
 #endif
 
 out:
 	free(transformed);
 	fnbuild_free(&fnb);
+#if DIRENT_API
 	closedir(d);
+#elif WINDOWS_API
+	FindClose(hFind);
+#endif
 	return ret;
 }
 
