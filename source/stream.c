@@ -523,7 +523,7 @@ nnc_result nnc_vfs_link_directory(nnc_vfs_directory_node *dir, const char *dirna
 	HANDLE hFind = INVALID_HANDLE_VALUE;
 
 	/* just windows things */
-	if(!fnbuild(&fnb, "\\*"))
+	if(!fnbuild(&fnb, "*"))
 	{
 		fnbuild_free(&fnb);
 		return NNC_R_NOMEM;

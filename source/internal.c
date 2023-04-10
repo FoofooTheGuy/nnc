@@ -153,7 +153,7 @@ u32 nnc_pow2(u32 exp)
 	return 1 << exp;
 }
 
-#if NNC_PLATFORM_UNIX
+#if NNC_PLATFORM_UNIX || defined(__CYGWIN__)
 	#include <unistd.h>
 	#define UNIX_LIKE
 	#define can_read(f) access(f, R_OK) == 0

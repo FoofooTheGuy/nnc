@@ -72,10 +72,10 @@ nnc_u32 nnc_bswap32(nnc_u32 a);
 nnc_u64 nnc_bswap64(nnc_u64 a);
 #endif
 
-#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
-	#define NNC_PLATFORM_UNIX 1
-#elif defined(_WIN32)
+#if defined(_WIN32) || defined(__MINGW32__) || defined(__CYGWIN__)
 	#define NNC_PLATFORM_WINDOWS 1
+#elif defined(__unix__) || defined(__linux__) || defined(__APPLE__)
+	#define NNC_PLATFORM_UNIX 1
 #elif defined(_3DS) || defined(__3DS__)
 	#define NNC_PLATFORM_3DS 1
 #endif
