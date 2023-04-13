@@ -114,9 +114,10 @@ nnc_result nnc_sighash(nnc_rstream *rs, enum nnc_sigtype sig, nnc_sha_hash diges
 
 /** \brief         Reads a certificate chain found in TMDs and tickets acquired from the CDN and CIAs.
  *  \param rs      Output certificate chain.
- *  \param chain   Output certificate chain. If extend is true this may be a chain written to by an earlier call to \ref nnc_read_certchain or \ref nnc_scan_certchains
+ *  \param chain   Output certificate chain. If extend is true this may be a chain written to by an earlier call to \ref nnc_read_certchain or \ref nnc_scan_certchains.
  *  \param extend  Use realloc() for first allocation instead of malloc().
  *  \note          You should always call \ref nnc_free_certchain after you're done with \p chain.
+ *  \note          If `chain` is NULL, this function performs some checks to see if this is a certificate chain and returns an error if not.
  *  \return
  *  Anything rs->read() can return.\n
  *  Anything \ref nnc_read_sig can return.\n

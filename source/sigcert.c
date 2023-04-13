@@ -220,22 +220,30 @@ nnc_result nnc_read_certchain(nnc_rstream *rs, nnc_certchain *chain, bool extend
 	/* typical certificate chains only have 3 certificates at most */
 	u32 left = 3;
 	result res;
-	if(extend) chain->certs = realloc(chain->certs, sizeof(nnc_certificate) * (chain->len + 3));
-	else { chain->certs = malloc(sizeof(nnc_certificate) * 3); chain->len = 0; }
-	if(!chain->certs) return NNC_R_NOMEM;
-	u32 orig_len = chain->len;
-	nnc_certificate *cert;
+
+	u32 len = 0;
+	if(chain)
+	{
+		if(extend) chain->certs = realloc(chain->certs, sizeof(nnc_certificate) * (chain->len + 3));
+		else { chain->certs = malloc(sizeof(nnc_certificate) * 3); chain->len = 0; }
+		if(!chain->certs) return NNC_R_NOMEM;
+		len = chain->len;
+	}
+
+	nnc_certificate dummy;
+	nnc_certificate *cert = &dummy;
 	while(NNC_RS_PCALL0(rs, tell) != size)
 	{
 		/* we need to allocate more */
-		if(!left)
+		if(chain && !left)
 		{
-			chain->certs = realloc(chain->certs, sizeof(nnc_certificate) * (chain->len + 3));
+			chain->certs = realloc(chain->certs, sizeof(nnc_certificate) * (len + 3));
 			if(!chain->certs) return NNC_R_NOMEM;
 			left = 3;
 		}
 		--left;
-		cert = &chain->certs[chain->len];
+
+		if(chain) cert = &chain->certs[len];
 		if((res = nnc_read_sig(rs, &cert->sig)) != NNC_R_OK)
 			goto err;
 		u8 first_blocks[0x48 + 8];
@@ -269,12 +277,13 @@ nnc_result nnc_read_certchain(nnc_rstream *rs, nnc_certchain *chain, bool extend
 		if((res = read_exact(rs, rest_data, cert_size + padding_size)) != NNC_R_OK)
 			goto err;
 		memcpy(&cert->data.raw[8], rest_data, cert_size);
-		++chain->len;
+		++len;
 	}
+
+	if(chain) chain->len = len;
 	return NNC_R_OK;
 err:
-	chain->len = orig_len;
-	if(!extend)
+	if(chain && !extend)
 		free(chain->certs);
 	return res;
 }
