@@ -324,6 +324,44 @@ result nnc_romfs_open_subview(nnc_romfs_ctx *ctx, nnc_subview *sv, nnc_romfs_inf
 	return NNC_R_OK;
 }
 
+static result nnc_romfs_to_vfs_iterate(nnc_romfs_ctx *ctx, nnc_romfs_info *info, nnc_vfs_directory_node *dir)
+{
+	nnc_romfs_iterator it = nnc_romfs_mkit(ctx, info);
+	nnc_vfs_directory_node *ndir;
+	nnc_romfs_info ent;
+	nnc_subview sv;
+	result ret;
+
+	while(nnc_romfs_next(&it, &ent))
+	{
+		const char *name = nnc_romfs_info_filename(ctx, &ent);
+		if(ent.type == NNC_ROMFS_DIR)
+		{
+			/* first we have to make a new directory */
+			TRY(nnc_vfs_add_directory(dir, name, &ndir));
+			/* now we can recurse into it */
+			TRY(nnc_romfs_to_vfs_iterate(ctx, &ent, ndir));
+		}
+		else
+		{
+			/* first we need to open the subview */
+			TRY(nnc_romfs_open_subview(ctx, &sv, &ent));
+			/* now we can add a file with reader, which will copy the subview */
+			TRY(nnc_vfs_add_file(dir, name, NNC_VFS_SUBVIEW(&sv)));
+		}
+	}
+
+	return NNC_R_OK;
+}
+
+result nnc_romfs_to_vfs(nnc_romfs_ctx *ctx, nnc_vfs_directory_node *dir)
+{
+	nnc_romfs_info info;
+	result ret;
+	TRY(nnc_get_info(ctx, &info, "/"));
+	return nnc_romfs_to_vfs_iterate(ctx, &info, dir);
+}
+
 result nnc_init_romfs(nnc_rstream *rs, nnc_romfs_ctx *ctx)
 {
 	result ret;

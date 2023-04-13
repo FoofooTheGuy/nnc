@@ -100,6 +100,12 @@ nnc_result nnc_get_info(nnc_romfs_ctx *ctx, nnc_romfs_info *info, const char *pa
  */
 const char *nnc_romfs_info_filename(nnc_romfs_ctx *ctx, nnc_romfs_info *info);
 
+/** \brief      Build a VFS from a RomFS reading context.
+ *  \param ctx  Context from \ref nnc_init_romfs.
+ *  \param dir  VFS directory to add to.
+ */
+nnc_result nnc_romfs_to_vfs(nnc_romfs_ctx *ctx, nnc_vfs_directory_node *dir);
+
 /** \brief       Opens a RomFS file in a subview \ref nnc_rstream.
  *  \param ctx   Context from \ref nnc_init_romfs.
  *  \param sv    Output subview.
