@@ -23,17 +23,15 @@ CXXFLAGS     := $(CFLAGS) $(SHAREDFLAGS) -std=c++11
 CFLAGS       +=           $(SHAREDFLAGS) -std=c99
 
 
-.PHONY: all clean test shared run-test docs examples install uninstall
+.PHONY: all clean test shared test docs examples install uninstall
 all: static
-run-test: test
-	./$(TEST_TARGET)
 docs:
 	doxygen
 test: $(TARGET) $(TEST_TARGET)
 shared:
 	$(MAKE) CFLAGS="$(CFLAGS) -fPIC" BUILD="$(BUILD)/PIC" $(SO_TARGET)
 static: $(TARGET)
-examples: bin/ bin/gm9_filename bin/determine_legitimacy bin/extract_cdn_contents
+examples: bin/ bin/gm9_filename bin/determine_legitimacy bin/extract_cdn_contents bin/replace_cia_romfs
 clean:
 	rm -rf $(BUILD) $(TARGET) $(SO_TARGET)
 install: static shared
@@ -41,6 +39,8 @@ install: static shared
 	install $(TARGET) $(SO_TARGET) $(DESTDIR)/$(LIBDIR)
 	mkdir -p $(DESTDIR)/include/nnc
 	install include/nnc/* $(DESTDIR)/include/nnc
+	mkdir -p $(DESTDIR)/include/nncpp
+	install include/nncpp/* $(DESTDIR)/include/nncpp
 uninstall:
 	rm -rf $(DESTDIR)/$(LIBDIR)/libnnc.so $(DESTDIR)/$(LIBDIR)/libnnc.a $(DESTDIR)/include/nnc
 
@@ -67,4 +67,6 @@ bin/gm9_filename: examples/gm9_filename.c $(TARGET)
 bin/determine_legitimacy: examples/determine_legitimacy.c $(TARGET)
 	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) $(LIBS)
 bin/extract_cdn_contents: examples/extract_cdn_contents.c $(TARGET)
+	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) $(LIBS)
+bin/replace_cia_romfs: examples/replace_cia_romfs.c $(TARGET)
 	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) $(LIBS)
