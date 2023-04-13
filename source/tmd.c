@@ -27,6 +27,8 @@ result nnc_read_tmd_header(rstream *rs, nnc_tmd_header *tmd)
 	/* 0x1A */ tmd->save_size = LE32P(&buf[0x1A]);
 	/* 0x1E */ tmd->priv_save_size = LE32P(&buf[0x1E]);
 	/* 0x22 */ /* reserved */
+	/* 0x26 */ tmd->srl_flag = buf[0x26];
+	/* 0x27 */ /* reserved */
 	/* 0x58 */ tmd->access_rights = BE32P(&buf[0x58]);
 	/* 0x5C */ tmd->title_ver = BE16P(&buf[0x5C]);
 	/* 0x5E */ tmd->content_count = BE16P(&buf[0x5E]);
@@ -193,7 +195,9 @@ result nnc_write_tmd(nnc_tmd_header *tmd, nnc_chunk_record *records, u16 numreco
 	U16P(&header[0x18]) = BE16(tmd->group_id);
 	U32P(&header[0x1A]) = LE32(tmd->save_size);
 	U32P(&header[0x1E]) = LE32(tmd->priv_save_size);
-	memset(&header[0x22], 0, 0x36);
+	memset(&header[0x22], 0, 0x4);
+	header[0x26] = tmd->srl_flag;
+	memset(&header[0x27], 0, 0x31);
 	U32P(&header[0x58]) = BE32(tmd->access_rights);
 	U16P(&header[0x5C]) = BE16(tmd->title_ver);
 	U16P(&header[0x5E]) = BE16(tmd->content_count);
