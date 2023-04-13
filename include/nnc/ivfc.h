@@ -7,6 +7,7 @@
 #include <nnc/base.h>
 #include <nnc/stream.h>
 #include <nnc/crypto.h>
+NNC_BEGIN
 
 /** Maximum of levels possible in an IVFC. */
 #define NNC_IVFC_MAX_LEVELS  4
@@ -83,5 +84,6 @@ nnc_result nnc_open_ivfc_writer(nnc_ivfc_writer *self, nnc_wstream *child, nnc_u
  */
 void nnc_ivfc_abort_write(nnc_ivfc_writer *self);
 
+NNC_END
 #endif
 
