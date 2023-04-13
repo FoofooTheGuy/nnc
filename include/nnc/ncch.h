@@ -125,6 +125,23 @@ typedef struct nnc_ncch_section_stream {
 	} u;
 } nnc_ncch_section_stream;
 
+typedef struct nnc_ncch_exefs_substream {
+	union nnc_ncch_exefs_substream_stype {
+		nnc_ncch_section_stream section;
+		nnc_subview raw;
+	} stream;
+	nnc_u32 offset;
+	nnc_u32 size;
+	nnc_u32 readoff;
+} nnc_ncch_exefs_substream;
+
+typedef struct nnc_ncch_exefs_stream {
+	const nnc_rstream_funcs *funcs;
+	nnc_ncch_exefs_substream substreams[(1 + NNC_EXEFS_MAX_FILES) * 2];
+	nnc_u32 pos, size;
+	nnc_u8 filecount, streamcount, curstream;
+} nnc_ncch_exefs_stream;
+
 
 /** \brief       Reads the header of an NCCH.
  *  \param rs    Stream to read NCCH header from.
@@ -162,6 +179,27 @@ nnc_result nnc_ncch_section_romfs(nnc_ncch_header *ncch, nnc_rstream *rs,
 nnc_result nnc_ncch_section_exefs_header(nnc_ncch_header *ncch, nnc_rstream *rs,
 	nnc_keypair *kp, nnc_ncch_section_stream *section);
 
+/** \brief         Opens an ExeFS file for an ExeFS that belongs to an NCCH.
+ *  \param ncch    NCCH to open ExeFS file of.
+ *  \param rs      Stream associated with NCCH.
+ *  \param kp      Keypair from \ref nnc_fill_keypair.
+ *  \param file    Output file stream.
+ *  \param header  File header from \ref nnc_read_exefs_header.
+ *  \returns
+ *  Anything \ref nnc_aes_ctr_open can return.\n
+ *  Anything \ref nnc_get_ncch_iv can return.
+ */
+nnc_result nnc_ncch_exefs_subview(nnc_ncch_header *ncch, nnc_rstream *rs,
+	nnc_keypair *kp, nnc_ncch_section_stream *file, nnc_exefs_file_header *header);
+
+/** \brief       This stream provides transparent sequential access to the decrypted ExeFS of an NCCH.
+ *  \param self  Output stream.
+ *  \param ncch  NCCH to open ExeFS file of.
+ *  \param rs    Stream associated with NCCH.
+ *  \param kp    Keypair from \ref nnc_fill_keypair.
+ */
+nnc_result nnc_ncch_exefs_full_stream(nnc_ncch_exefs_stream *self, nnc_ncch_header *ncch, nnc_rstream *rs, nnc_keypair *kp);
+
 /** \brief          Open a stream for the extended header.
  *  \param ncch     NCCH to open from.
  *  \param rs       Stream associated with NCCH.
@@ -178,19 +216,6 @@ nnc_result nnc_ncch_section_exefs_header(nnc_ncch_header *ncch, nnc_rstream *rs,
  */
 nnc_result nnc_ncch_section_exheader(nnc_ncch_header *ncch, nnc_rstream *rs,
 	nnc_keypair *kp, nnc_ncch_section_stream *section);
-
-/** \brief         Opens an ExeFS file for an ExeFS that belongs to an NCCH.
- *  \param ncch    NCCH to open ExeFS file of.
- *  \param rs      Stream associated with NCCH.
- *  \param kp      Keypair from \ref nnc_fill_keypair.
- *  \param file    Output file stream.
- *  \param header  File header from \ref nnc_read_exefs_header.
- *  \returns
- *  Anything \ref nnc_aes_ctr_open can return.\n
- *  Anything \ref nnc_get_ncch_iv can return.
- */
-nnc_result nnc_ncch_exefs_subview(nnc_ncch_header *ncch, nnc_rstream *rs,
-	nnc_keypair *kp, nnc_ncch_section_stream *file, nnc_exefs_file_header *header);
 
 /** \brief          Opens the plain section in an NCCH used for SDK strings.
  *  \param ncch     NCCH to open plain section of.

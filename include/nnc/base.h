@@ -1,3 +1,4 @@
+
 /** \file  base.h
  *  \brief Basic type definitions & functions.
  */
@@ -62,6 +63,7 @@ enum nnc_result_codes {
 	NNC_R_NOT_OPEN,        ///< File not open.
 	NNC_R_OPEN,            ///< File open.
 	NNC_R_OS,              ///< Generic operating system error.
+	NNC_R_INTERNAL,        ///< Internal library error, this should not happen.
 };
 
 enum nnc_tid_category {

@@ -128,7 +128,9 @@ const char *nnc_strerror(nnc_result res)
 	case NNC_R_INVALID_CERT: return "invalid certificate type";
 	case NNC_R_FAIL_WRITE: return "failed to write";
 	case NNC_R_NOT_OPEN: return "not open";
-	case NNC_R_OPEN: return "open";
+	case NNC_R_OPEN: return "already open";
+	case NNC_R_OS: return "OS error";
+	case NNC_R_INTERNAL: return "internal nnc error";
 	}
 	return NULL;
 }

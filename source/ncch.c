@@ -112,6 +112,162 @@ nnc_result nnc_ncch_section_exheader(nnc_ncch_header *ncch, nnc_rstream *rs,
 		&kp->primary, iv);
 }
 
+static result efs_strm_read(nnc_ncch_exefs_stream *self, u8 *buf, u32 max, u32 *totalRead)
+{
+	u32 willread = MIN(max, self->size - self->pos);
+	*totalRead = willread;
+	nnc_result ret;
+	u32 bufoff = 0;
+
+	while(willread)
+	{
+		nnc_ncch_exefs_substream *sstream = &self->substreams[self->curstream];
+		/* internal error */
+		if(sstream->readoff == sstream->size) return NNC_R_INTERNAL;
+		u32 left_in_ss = sstream->size - sstream->readoff;
+		u32 this_read = MIN(willread, left_in_ss);
+		TRY(read_exact(NNC_RSP(&sstream->stream), buf + bufoff, this_read));
+		bufoff += this_read;
+		willread -= this_read;
+		sstream->readoff += this_read;
+		self->pos += this_read;
+		/* we need to move over to the next substream */
+		if(sstream->readoff == sstream->size)
+		{
+			++self->curstream;
+			if(self->curstream != self->streamcount)
+			{
+				sstream = &self->substreams[self->curstream];
+				sstream->readoff = 0;
+				TRY(NNC_RS_CALL(sstream->stream, seek_abs, 0));
+			}
+		}
+	}
+	return NNC_R_OK;
+}
+
+static result efs_strm_seek_abs(nnc_ncch_exefs_stream *self, u32 pos)
+{
+	if(pos > self->size) return NNC_R_SEEK_RANGE;
+	/* find the correct bucket */
+	for(u8 i = 0; i < self->streamcount; ++i)
+		if(self->substreams[i].offset >= pos)
+		{
+			/* found it; seek to this bucket */
+			u32 amount_in = self->substreams[i].offset - pos;
+			result res = NNC_RS_CALL(self->substreams[i].stream, seek_abs, amount_in);
+			if(res != NNC_R_OK) return res;
+			self->substreams[i].readoff = amount_in;
+			self->pos = pos;
+			self->curstream = i;
+			return NNC_R_OK;
+		}
+	/* shouldn't happen */
+	return NNC_R_SEEK_RANGE;
+}
+
+static result efs_strm_seek_rel(nnc_ncch_exefs_stream *self, u32 pos)
+{
+	return efs_strm_seek_abs(self, self->pos + pos);
+}
+
+static u32 efs_strm_size(nnc_ncch_exefs_stream *self)
+{
+	return self->size;
+}
+
+static void efs_strm_close(nnc_ncch_exefs_stream *self)
+{
+	for(u8 i = 0; i < self->streamcount; ++i)
+		NNC_RS_CALL0(self->substreams[i].stream, close);
+}
+
+static u32 efs_strm_tell(nnc_ncch_exefs_stream *self) { return self->pos; }
+
+static const nnc_rstream_funcs efs_strm_funcs = {
+	.read = (nnc_read_func) efs_strm_read,
+	.seek_abs = (nnc_seek_abs_func) efs_strm_seek_abs,
+	.seek_rel = (nnc_seek_rel_func) efs_strm_seek_rel,
+	.size = (nnc_size_func) efs_strm_size,
+	.close = (nnc_close_func) efs_strm_close,
+	.tell = (nnc_tell_func) efs_strm_tell,
+};
+
+nnc_result nnc_ncch_exefs_full_stream(nnc_ncch_exefs_stream *self, nnc_ncch_header *ncch, nnc_rstream *rs, nnc_keypair *kp)
+{
+	nnc_ncch_section_stream *header_stream = &self->substreams[0].stream.section;
+	nnc_exefs_file_header headers[NNC_EXEFS_MAX_FILES];
+	u8 filecount;
+	result ret;
+
+	self->funcs = &efs_strm_funcs;
+	self->streamcount = 0;
+
+	TRY(nnc_ncch_section_exefs_header(ncch, rs, kp, header_stream)); self->streamcount = 1;
+	TRYLBL(nnc_read_exefs_header(NNC_RSP(header_stream), headers, &filecount), out);
+	NNC_RS_PCALL(header_stream, seek_abs, 0);
+
+	self->substreams[0].offset = 0;
+	self->substreams[0].size = NNC_EXEFS_HEADER_SIZE;
+	u32 mpos = NNC_EXEFS_HEADER_SIZE;
+
+	u8 sindex = 1;
+	u32 tpos, nsiz;
+	for(u8 i = 0; i < filecount; ++i)
+	{
+		tpos = NNC_EXEFS_HEADER_SIZE + headers[i].offset;
+		if(mpos < tpos)
+		{
+			/* we need to add an "in-between" section */
+			nsiz = tpos - mpos;
+			self->substreams[sindex].offset = mpos;
+			self->substreams[sindex].size = nsiz;
+			self->substreams[sindex].readoff = 0;
+			/* open a substream in the raw exefs */
+			nnc_subview_open(&self->substreams[sindex].stream.raw, rs, NNC_MU_TO_BYTE(ncch->exefs_offset) + mpos, nsiz);
+			mpos += nsiz;
+			++sindex;
+			++self->streamcount;
+		}
+		else if(mpos > tpos)
+		{
+			/* in this case something is wrong */
+			ret = NNC_R_CORRUPT;
+			break;
+		}
+		self->substreams[sindex].offset = mpos;
+		self->substreams[sindex].size = headers[i].size;
+		self->substreams[sindex].readoff = 0;
+		TRYLBL(nnc_ncch_exefs_subview(ncch, rs, kp, &self->substreams[sindex].stream.section, &headers[i]), out);
+		++self->streamcount;
+		++sindex;
+		mpos += headers[i].size;
+	}
+	/* Add the last section */
+	tpos = NNC_MU_TO_BYTE(ncch->exefs_size);
+	if(mpos < tpos)
+	{
+		nsiz = tpos - mpos;
+		self->substreams[sindex].offset = mpos;
+		self->substreams[sindex].size = nsiz;
+		self->substreams[sindex].readoff = 0;
+		nnc_subview_open(&self->substreams[sindex].stream.raw, rs, NNC_MU_TO_BYTE(ncch->exefs_offset) + mpos, nsiz);
+		++self->streamcount;
+		mpos += nsiz;
+	}
+	else if(mpos > tpos)
+		ret = NNC_R_CORRUPT;
+
+	self->size = mpos;
+	self->pos = 0;
+	self->curstream = 0;
+
+out:
+	if(ret != NNC_R_OK)
+		efs_strm_close(self);
+	return ret;
+}
+
 nnc_result nnc_ncch_exefs_subview(nnc_ncch_header *ncch, nnc_rstream *rs,
 	nnc_keypair *kp, nnc_ncch_section_stream *section, nnc_exefs_file_header *header)
 {
@@ -303,10 +459,11 @@ nnc_result nnc_write_ncch(
 	TRY(NNC_WS_PCALL(ws, seek, header_off));
 
 	/* convert everything to media units... */
-	logo_off   = NNC_BYTE_TO_MU(logo_off);
-	plain_off  = NNC_BYTE_TO_MU(plain_off);
-	exefs_off  = NNC_BYTE_TO_MU(exefs_off);
-	romfs_off  = NNC_BYTE_TO_MU(romfs_off);
+	/* not before normalizing offsets to be inside the ncch of course */
+	logo_off   = NNC_BYTE_TO_MU(logo_off - header_off);
+	plain_off  = NNC_BYTE_TO_MU(plain_off - header_off);
+	exefs_off  = NNC_BYTE_TO_MU(exefs_off - header_off);
+	romfs_off  = NNC_BYTE_TO_MU(romfs_off - header_off);
 	logo_size  = NNC_BYTE_TO_MU(logo_size);
 	plain_size = NNC_BYTE_TO_MU(plain_size);
 	exefs_size = NNC_BYTE_TO_MU(exefs_size);
