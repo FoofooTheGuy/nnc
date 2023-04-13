@@ -8,6 +8,10 @@
 #include <string.h>
 #include "./internal.h"
 
+enum nnc_file_flags {
+	NNC_FILE_KEEP_ALIVE = 1,
+};
+
 static result file_read(nnc_file *self, u8 *buf, u32 max, u32 *totalRead)
 {
 	u32 total = fread(buf, 1, max, self->f);
@@ -37,7 +41,10 @@ static u32 file_size(nnc_file *self)
 { return self->size; }
 
 static void file_close(nnc_file *self)
-{ fclose(self->f); }
+{
+	if(!(self->flags & NNC_FILE_KEEP_ALIVE))
+		fclose(self->f);
+}
 
 static u32 file_tell(nnc_file *self)
 { return ftell(self->f); }
@@ -51,15 +58,21 @@ static const nnc_rstream_funcs file_funcs = {
 	.tell = (nnc_tell_func) file_tell,
 };
 
+static u32 get_file_size(FILE *file)
+{
+	u32 pos = ftell(file);
+	fseek(file, 0, SEEK_END);
+	u32 size = ftell(file);
+	fseek(file, pos, SEEK_SET);
+	return size;
+}
+
 result nnc_file_open(nnc_file *self, const char *name)
 {
 	self->f = fopen(name, "rb");
+	self->flags = 0;
 	if(!self->f) return NNC_R_FAIL_OPEN;
-
-	fseek(self->f, 0, SEEK_END);
-	self->size = ftell(self->f);
-	fseek(self->f, 0, SEEK_SET);
-
+	self->size = get_file_size(self->f);
 	self->funcs = &file_funcs;
 	return NNC_R_OK;
 }
@@ -68,7 +81,9 @@ static nnc_result wfile_write(nnc_wfile *self, nnc_u8 *buf, nnc_u32 size)
 { return fwrite(buf, 1, size, self->f) == size ? NNC_R_OK : NNC_R_FAIL_WRITE; }
 
 static result wfile_close(nnc_wfile *self)
-{ return fclose(self->f) == 0 ? NNC_R_OK : NNC_R_FAIL_WRITE; }
+{
+	return fclose(self->f) == 0 ? NNC_R_OK : NNC_R_FAIL_WRITE;
+}
 
 static nnc_result wfile_seek(nnc_wfile *self, nnc_u32 pos)
 {
@@ -78,16 +93,32 @@ static nnc_result wfile_seek(nnc_wfile *self, nnc_u32 pos)
 static nnc_u32 wfile_tell(nnc_wfile *self)
 { return ftell(self->f); }
 
+static nnc_result wfile_subreadstream(nnc_wfile *self, nnc_subview *out, nnc_u32 start, nnc_u32 len)
+{
+	nnc_file *substream = malloc(sizeof(nnc_file));
+	if(!substream) return NNC_R_NOMEM;
+	substream->funcs = &file_funcs;
+	substream->flags |= NNC_FILE_KEEP_ALIVE;
+	substream->f = self->f;
+	substream->size = get_file_size(self->f);
+	if(start + len >= substream->size)
+		return NNC_R_SEEK_RANGE;
+	nnc_subview_open(out, NNC_RSP(substream), start, len);
+	nnc_subview_delete_on_close(out);
+	return NNC_R_OK;
+}
+
 static const nnc_wstream_funcs wfile_funcs = {
 	.write = (nnc_write_func) wfile_write,
 	.close = (nnc_wclose_func) wfile_close,
 	.seek = (nnc_wseek_func) wfile_seek,
 	.tell = (nnc_wtell_func) wfile_tell,
+	.subreadstream = (nnc_wsubreadstream_func) wfile_subreadstream,
 };
 
 result nnc_wfile_open(nnc_wfile *self, const char *name)
 {
-	self->f = fopen(name, "wb");
+	self->f = fopen(name, "wb+");
 	if(!self->f) return NNC_R_FAIL_OPEN;
 	self->funcs = &wfile_funcs;
 	return NNC_R_OK;
@@ -213,6 +244,10 @@ void nnc_mem_own_open(nnc_memory *self, void *ptr, u32 size)
 	self->pos = 0;
 }
 
+enum nnc_subview_flags {
+	NNC_SUBVIEW_DELETE_ON_CLOSE = 1,
+};
+
 static result subview_read(nnc_subview *self, u8 *buf, u32 max, u32 *totalRead)
 {
 	u32 sizeleft = self->size - self->pos;
@@ -247,8 +282,11 @@ static u32 subview_size(nnc_subview *self)
 
 static void subview_close(nnc_subview *self)
 {
-	/* nothing to do... */
-	(void) self;
+	if(self->flags & NNC_SUBVIEW_DELETE_ON_CLOSE)
+	{
+		NNC_RS_PCALL0(self->child, close);
+		free(self->child);
+	}
 }
 
 static nnc_u32 subview_tell(nnc_subview *self)
@@ -268,10 +306,16 @@ static const nnc_rstream_funcs subview_funcs = {
 void nnc_subview_open(nnc_subview *self, nnc_rstream *child, nnc_u32 off, nnc_u32 len)
 {
 	self->funcs = &subview_funcs;
+	self->flags = 0;
 	self->child = child;
 	self->size = len;
 	self->off = off;
 	self->pos = 0;
+}
+
+void nnc_subview_delete_on_close(nnc_subview *self)
+{
+	self->flags |= NNC_SUBVIEW_DELETE_ON_CLOSE;
 }
 
 /* ... vfs code ... */
@@ -683,10 +727,47 @@ static void nnc_sgen_delete_data(nnc_vfs_generator_data udata)
 }
 
 const nnc_vfs_reader_generator nnc__internal_vfs_generator_reader = {
-	.initialize = nnc_sgen_initialize,
+	.initialize  = nnc_sgen_initialize,
 	.make_reader = nnc_sgen_make_reader,
-	.node_size = nnc_sgen_node_size,
+	.node_size   = nnc_sgen_node_size,
 	.delete_data = nnc_sgen_delete_data,
+};
+
+static nnc_result nnc_svgen_initialize(nnc_vfs_generator_data *out_udata, va_list params)
+{
+	nnc_subview *sv = va_arg(params, nnc_subview *);
+	nnc_vfs_generator_data data = malloc(sizeof(nnc_subview));
+	if(!data) return NNC_R_NOMEM;
+	memcpy(data, sv, sizeof(nnc_subview));
+	*out_udata = data;
+	return NNC_R_OK;
+}
+
+static nnc_result nnc_svgen_make_reader(nnc_vfs_generator_data udata, nnc_vfs_stream **out_stream)
+{
+	*out_stream = malloc(sizeof(nnc_subview));
+	if(!*out_stream) return NNC_R_NOMEM;
+	memcpy(*out_stream, udata, sizeof(nnc_subview));
+	return NNC_R_OK;
+}
+
+static size_t nnc_svgen_node_size(nnc_vfs_generator_data udata)
+{
+	nnc_subview *sv = (nnc_subview *) udata;
+	return sv->size;
+}
+
+static void nnc_svgen_delete_data(nnc_vfs_generator_data udata)
+{
+	free(udata);
+}
+
+
+const nnc_vfs_reader_generator nnc__internal_vfs_generator_subview = {
+	.initialize  = nnc_svgen_initialize,
+	.make_reader = nnc_svgen_make_reader,
+	.node_size   = nnc_svgen_node_size,
+	.delete_data = nnc_svgen_delete_data,
 };
 
 //

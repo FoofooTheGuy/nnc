@@ -63,6 +63,7 @@ typedef struct nnc_file {
 	const nnc_rstream_funcs *funcs;
 	nnc_u32 size;
 	FILE *f;
+	nnc_u8 flags;
 } nnc_file;
 
 /** Stream for memory buffer. */
@@ -83,6 +84,7 @@ typedef struct nnc_subview {
 	nnc_u32 size;
 	nnc_u32 off;
 	nnc_u32 pos;
+	nnc_u8 flags;
 } nnc_subview;
 
 /** \brief       Create a new file stream.
@@ -107,9 +109,15 @@ void nnc_mem_own_open(nnc_memory *self, void *ptr, nnc_u32 size);
  *  \param child  Child stream.
  *  \param off    Starting offset in \p child.
  *  \param len    Length of data in \p child.
- *  \note         Closing this stream has no effect; the child stream is not closed.
+ *  \note         Closing this stream has no effect; the child stream is not closed, that is, unless #nnc_subview_delete_on_close is called.
  */
 void nnc_subview_open(nnc_subview *self, nnc_rstream *child, nnc_u32 off, nnc_u32 len);
+
+/** \brief       This function makes the substream close and free its child stream when it is closed.
+ *  \param self  The stream to enable this functionality on.
+ *  \warning     A subview marked with this function MUST be closed!
+ */
+void nnc_subview_delete_on_close(nnc_subview *self);
 
 /** \} */
 
@@ -134,12 +142,14 @@ typedef nnc_result (*nnc_write_func)(struct nnc_wstream *self, nnc_u8 *buf, nnc_
 typedef nnc_result (*nnc_wclose_func)(struct nnc_wstream *self);
 typedef nnc_result (*nnc_wseek_func)(struct nnc_wstream *self, nnc_u32 abspos);
 typedef nnc_u32    (*nnc_wtell_func)(struct nnc_wstream *self);
+typedef nnc_result (*nnc_wsubreadstream_func)(struct nnc_wstream *self, nnc_subview *out, nnc_u32 start, nnc_u32 amount);
 
 typedef struct nnc_wstream_funcs {
 	nnc_write_func write;
 	nnc_wclose_func close;
 	nnc_wseek_func seek; ///< Note that this may be NULL in streams that do not support seeking.
 	nnc_wtell_func tell;
+	nnc_wsubreadstream_func subreadstream; ///< Note that this may be NULL in streams that do not support readback.
 } nnc_wstream_funcs;
 
 typedef struct nnc_wstream {
@@ -186,6 +196,8 @@ nnc_result nnc_open_header_saver(nnc_header_saver *self, nnc_wstream *child, nnc
 #define NNC_VFS_FILE(filename) &nnc__internal_vfs_generator_file, (filename)
 /** \brief VFS vfile parameters for adding a read stream */
 #define NNC_VFS_READER(rs) &nnc__internal_vfs_generator_reader, (rs)
+/** \brief VFS vfile parameters for adding a subview stream copy */
+#define NNC_VFS_SUBVIEW(sv) &nnc__internal_vfs_generator_subview, (sv)
 /** \brief Identitiy map in a directory link, that is, preserve the names from the filesystem */
 #define nnc_vfs_identity_transform  NULL /* magic from the function itself */
 /** \brief An alternative name for nnc_rstream used in the VFS functions */
@@ -284,6 +296,7 @@ void nnc_vfs_close_node(nnc_vfs_stream *reader);
 nnc_u64 nnc_vfs_node_size(nnc_vfs_file_node *node);
 
 /* \cond INTERNAL */
+extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_subview;
 extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_reader;
 extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_file;
 /* \endcond */
