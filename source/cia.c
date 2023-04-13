@@ -144,7 +144,7 @@ nnc_result nnc_write_cia(
 	nnc_cia_writable_ncch *contents,
 	nnc_wstream *ws)
 {
-	if(!ws->funcs->seek)
+	if(!ws->funcs->seek || !ws->funcs->subreadstream)
 		return NNC_R_INVAL;
 
 #define DO_VALIDATE_FOR(ptr, opt1, opt2) if( !ptr || (wflags & (opt1 | opt2)) == 0 || (wflags & (opt1 | opt2)) == (opt1 | opt2)) return NNC_R_INVAL
@@ -154,7 +154,7 @@ nnc_result nnc_write_cia(
 #undef DO_VALIDATE_FOR
 
 	result ret;
-	nnc_u32 certchain_size, ticket_size, tmd_size, hdr_off, tmd_off, off, size, chunkcount = 0;
+	nnc_u32 certchain_size, ticket_size, tmd_size, hdr_off, tmd_off, off, size, chunkcount = 0, startpos, endpos;
 	nnc_chunk_record *chunk_records = NULL;
 	nnc_wstream *content_writer;
 	nnc_hasher_writer hasher = { NULL };
@@ -217,7 +217,15 @@ nnc_result nnc_write_cia(
 			break;
 		case NNC_CIA_NCCHBUILD_BUILD:
 			off = NNC_WS_PCALL0(ws, tell);
-			TRYLBL(nnc_write_ncch_from_buildable((nnc_buildable_ncch *) contents[i].ncch, content_writer), out);
+			/* this requires seeking... which our content_writer may not have since it may be a hasher */
+			if(wflags & NNC_CIA_WF_TMD_BUILD)
+			{
+				startpos = NNC_WS_PCALL0(ws, tell);
+				TRYLBL(nnc_write_ncch_from_buildable((nnc_buildable_ncch *) contents[i].ncch, ws), out);
+				endpos = NNC_WS_PCALL0(ws, tell);
+			}
+			else
+				TRYLBL(nnc_write_ncch_from_buildable((nnc_buildable_ncch *) contents[i].ncch, content_writer), out);
 			size = NNC_WS_PCALL0(ws, tell) - off;
 			break;
 		}
@@ -231,7 +239,18 @@ nnc_result nnc_write_cia(
 			chunk_records[chunkcount].index = i;
 			chunk_records[chunkcount].flags = 0; /* we don't set any flags */
 			chunk_records[chunkcount].size = size;
-			nnc_hasher_writer_digest_reset(&hasher, chunk_records[chunkcount].hash);
+			if(contents[i].type == NNC_CIA_NCCHBUILD_BUILD)
+			{
+				/* we need to read back and hash */
+				nnc_subview sv;
+				TRYLBL(NNC_WS_PCALL(ws, subreadstream, &sv, startpos, endpos - startpos), out);
+				ret = nnc_crypto_sha256_stream(NNC_RSP(&sv), chunk_records[chunkcount].hash);
+				NNC_RS_CALL0(sv, close);
+				if(ret != NNC_R_OK)
+					goto out;
+			}
+			else
+				nnc_hasher_writer_digest_reset(&hasher, chunk_records[chunkcount].hash);
 			++chunkcount;
 		}
 
