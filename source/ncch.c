@@ -103,7 +103,7 @@ nnc_result nnc_ncch_section_exheader(nnc_ncch_header *ncch, nnc_rstream *rs,
 	/* for some reason the header says it's 0x400 bytes whilest it really is 0x800 bytes */
 	if(ncch->exheader_size != EXHEADER_NCCH_SIZE) return NNC_R_CORRUPT;
 	if(ncch->flags & NNC_NCCH_NO_CRYPTO)
-		return SUBVIEW_R(dec, EXHEADER_OFFSET, EXHEADER_NCCH_SIZE), NNC_R_OK;
+		return SUBVIEW_R(dec, EXHEADER_OFFSET, EXHEADER_FULL_SIZE), NNC_R_OK;
 
 	u8 iv[0x10]; result ret;
 	TRY(nnc_get_ncch_iv(ncch, NNC_SECTION_EXHEADER, iv));
