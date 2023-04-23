@@ -75,7 +75,7 @@ static const char *get_flags(nnc_u32 flags)
 	static char buf[0x200];
 	int of = 0;
 #define DO(flag) if(flags & NNC_SMDH_FLAG_##flag) { strcat(buf, #flag ", "); of += strlen(#flag ", "); }
-	DO(VISABLE);
+	DO(VISIBLE);
 	DO(AUTOBOOT);
 	DO(ALLOW_3D);
 	DO(REQUIRE_EULA);

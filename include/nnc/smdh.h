@@ -51,7 +51,7 @@ enum nnc_region_lockout {
 };
 
 enum nnc_smdh_flags {
-	NNC_SMDH_FLAG_VISABLE         = 0x1,    ///< Application is visable on home menu.
+	NNC_SMDH_FLAG_VISIBLE         = 0x1,    ///< Application is visible on home menu.
 	NNC_SMDH_FLAG_AUTOBOOT        = 0x2,    ///< Automatically boot gamecard.
 	NNC_SMDH_FLAG_ALLOW_3D        = 0x4,    ///< Allow use of 3D with parental controls.
 	NNC_SMDH_FLAG_REQUIRE_EULA    = 0x8,    ///< Make home menu check the EULA version.

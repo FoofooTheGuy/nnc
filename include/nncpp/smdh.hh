@@ -71,7 +71,7 @@ namespace nnc
 
 		enum class flag
 		{
-			visable         = NNC_SMDH_FLAG_VISABLE,
+			visible         = NNC_SMDH_FLAG_VISIBLE,
 			autoboot        = NNC_SMDH_FLAG_AUTOBOOT,
 			allow_3d        = NNC_SMDH_FLAG_ALLOW_3D,
 			require_eula    = NNC_SMDH_FLAG_REQUIRE_EULA,
@@ -135,9 +135,9 @@ namespace nnc
 	private:
 		nnc_smdh csmdh;
 	};
-	NNCPP__DEFINE_ENUM_BITWISE_OPERATORS(smdh::ratingflag);
-	NNCPP__DEFINE_ENUM_BITWISE_OPERATORS(smdh::region);
-	NNCPP__DEFINE_ENUM_BITWISE_OPERATORS(smdh::flag);
+	NNCPP__DEFINE_ENUM_BITWISE_OPERATORS(smdh::ratingflag)
+	NNCPP__DEFINE_ENUM_BITWISE_OPERATORS(smdh::region)
+	NNCPP__DEFINE_ENUM_BITWISE_OPERATORS(smdh::flag)
 }
 
 #endif
