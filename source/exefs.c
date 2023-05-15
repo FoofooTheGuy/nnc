@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "./internal.h"
 
+#define NNC_EXEFS_ALIGNMENT 0x200
 
 bool nnc_exefs_file_in_use(nnc_exefs_file_header *fh)
 {
@@ -73,6 +74,7 @@ result nnc_write_exefs(nnc_vfs *vfs, nnc_wstream *ws)
 	nnc_vfs_stream *source;
 	result ret;
 	nnc_sha256_hash hash;
+	u32 copied;
 
 	if(vfs->totalfiles > NNC_EXEFS_MAX_FILES) return NNC_R_TOO_LARGE;
 	if(vfs->totaldirs != 1)                   return NNC_R_NOT_A_FILE;
@@ -99,7 +101,7 @@ result nnc_write_exefs(nnc_vfs *vfs, nnc_wstream *ws)
 		/* 0x0C */ U32P(&block[0x0C]) = LE32(size);
 		block = &header[0xC0 + sizeof(nnc_sha256_hash) * (NNC_EXEFS_MAX_FILES - i - 1)];
 		/* 0x00 */ memcpy(block, hash, sizeof(hash));
-		cumulative_offset += size;
+		cumulative_offset += ALIGN(size, NNC_EXEFS_ALIGNMENT);
 	}
 
 	TRY(NNC_WS_PCALL(ws, write, header, sizeof(header)));
@@ -107,10 +109,11 @@ result nnc_write_exefs(nnc_vfs *vfs, nnc_wstream *ws)
 	for(i = 0; i < vfs->root_directory.filecount; ++i)
 	{
 		TRY(nnc_vfs_open_node(&vfs->root_directory.file_children[i], &source));
-		ret = nnc_copy(source, ws, NULL);
+		ret = nnc_copy(source, ws, &copied);
 		nnc_vfs_close_node(source);
 		if(ret != NNC_R_OK)
 			return ret;
+		TRY(nnc_write_padding(ws, ALIGN(copied, NNC_EXEFS_ALIGNMENT) - copied));
 	}
 
 	return NNC_R_OK;
