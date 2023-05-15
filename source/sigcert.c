@@ -13,17 +13,20 @@
 	#define ACCESS_PRIV(name) name
 #endif
 
+#define NNC_SIGTYPE_IS_NONE(s) ((s) >= NNC_SIG_NONE && (s) <= NNC_SIG_NONE + NNC_SIG_ECDSA_SHA256)
+
 #define SIGN_MAX 5
 #define CERT_MAX 2
 
 static u16 size_lut[0x6] = { 0x200, 0x100, 0x3C, 0x200, 0x100, 0x3C };
 static u16 pad_lut[0x6]  = { 0x3C,  0x3C,  0x40, 0x3C,  0x3C,  0x40 };
-#define SIG_NONE_SIZE 0x240
+#define SIG_MAX_SIZE 0x240
 
 
 u16 nnc_sig_size(enum nnc_sigtype sig)
 {
-	if(sig == NNC_SIG_NONE) return SIG_NONE_SIZE;
+	if(NNC_SIGTYPE_IS_NONE(sig))
+		sig -= NNC_SIG_NONE;
 	if(sig > SIGN_MAX) return 0;
 	return size_lut[sig] + pad_lut[sig] + 0x04;
 }
@@ -55,14 +58,18 @@ result nnc_read_sig(rstream *rs, nnc_signature *sig)
 
 nnc_result nnc_write_sig(nnc_signature *sig, nnc_wstream *ws)
 {
-	if(sig->type == NNC_SIG_NONE)
+	if(NNC_SIGTYPE_IS_NONE(sig->type))
 	{
-		u8 data[SIG_NONE_SIZE + 0x40 /* + issuer */];
+		u8 data[SIG_MAX_SIZE + 0x40 /* + issuer */];
 		memset(data, 0x00, sizeof(data));
 		data[0x01] = 1; /* absolutely required... */
-		return NNC_WS_PCALL(ws, write, data, sizeof(data));
+		data[0x03] = sig->type - NNC_SIG_NONE;
+		/* we need to have an issuer or we fail */
+		memcpy(&data[nnc_sig_size(sig->type)], sig->issuer, sizeof(sig->issuer));
+		return NNC_WS_PCALL(ws, write, data, nnc_sig_size(sig->type) + 0x40);
 	}
-	if(sig->type > SIGN_MAX) return NNC_R_INVALID_SIG;
+	if(sig->type > SIGN_MAX)
+		return NNC_R_INVALID_SIG;
 	u8 data[0x240 + 0x40];
 	data[0] = 0x00;
 	data[1] = 0x01;
@@ -93,7 +100,7 @@ const char *nnc_sigstr(enum nnc_sigtype sig)
 	case NNC_SIG_ECDSA_SHA256:
 		return "Elliptic Curve - SHA256";
 	case NNC_SIG_NONE:
-		return "No Signature - NULL";
+		return "Signature - NULL";
 	}
 	return NULL;
 }

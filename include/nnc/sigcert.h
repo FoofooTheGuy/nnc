@@ -16,7 +16,7 @@ enum nnc_sigtype {
 	NNC_SIG_RSA_4096_SHA256 = 3,   ///< RSA 4096 with SHA256.
 	NNC_SIG_RSA_2048_SHA256 = 4,   ///< RSA 2048 with SHA256.
 	NNC_SIG_ECDSA_SHA256    = 5,   ///< Elliptic Curve with SHA256.
-	NNC_SIG_NONE            = 255, ///< Value used (only) by nnc to write an empty signature.
+	NNC_SIG_NONE            = 200, ///< Value used (only) by nnc to write an empty signature. Add to this constant the signature type.
 };
 
 typedef struct nnc_signature {
