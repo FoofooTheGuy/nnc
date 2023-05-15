@@ -155,7 +155,8 @@ result nnc_tmd_signature_hash(nnc_rstream *rs, nnc_tmd_header *tmd, nnc_sha_hash
 
 result nnc_write_tmd(nnc_tmd_header *tmd, nnc_chunk_record *records, u16 numrecords, nnc_wstream *ws)
 {
-	if(numrecords != tmd->content_count)
+	/* We write version 1, so that should be in the struct as well */
+	if(numrecords != tmd->content_count || tmd->version != 1)
 		return NNC_R_INVAL;
 
 	result ret;
