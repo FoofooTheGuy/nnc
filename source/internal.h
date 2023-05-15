@@ -60,9 +60,9 @@
 #define TRY(expr) if((ret = ( expr )) != NNC_R_OK) return ret
 #define TRYLBL(expr, label) if((ret = ( expr )) != NNC_R_OK) goto label
 
-#define ALIGN(a, n)        (((a) + ((n) - 1)) & ~((n) - 1)) /* N.B.: `a' must be a power of 2! */
-#define ALIGN_DOWN(a, n)   (((a) & ~((n) - 1)))             /* N.B.: `a' must be a power of 2! */
-#define IS_UNALIGNED(a, n) ((a) & ((n) - 1))                /* N.B.: `a' must be a power of 2! */
+#define ALIGN(a, n)        (((a) + ((n) - 1)) & ~((n) - 1)) /* N.B.: `n' must be a power of 2! */
+#define ALIGN_DOWN(a, n)   (((a) & ~((n) - 1)))             /* N.B.: `n' must be a power of 2! */
+#define IS_UNALIGNED(a, n) ((a) & ((n) - 1))                /* N.B.: `n' must be a power of 2! */
 
 #define NNC_BYTE_TO_MU(a) (ALIGN(a, NNC_MEDIA_UNIT) / NNC_MEDIA_UNIT)
 
