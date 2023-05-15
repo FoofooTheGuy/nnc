@@ -98,10 +98,10 @@ static nnc_result wfile_subreadstream(nnc_wfile *self, nnc_subview *out, nnc_u32
 	nnc_file *substream = malloc(sizeof(nnc_file));
 	if(!substream) return NNC_R_NOMEM;
 	substream->funcs = &file_funcs;
-	substream->flags |= NNC_FILE_KEEP_ALIVE;
+	substream->flags = NNC_FILE_KEEP_ALIVE;
 	substream->f = self->f;
 	substream->size = get_file_size(self->f);
-	if(start + len >= substream->size)
+	if(start + len > substream->size)
 		return NNC_R_SEEK_RANGE;
 	nnc_subview_open(out, NNC_RSP(substream), start, len);
 	nnc_subview_delete_on_close(out);
