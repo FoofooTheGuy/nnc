@@ -649,7 +649,7 @@ result nnc_write_romfs(nnc_vfs *vfs, nnc_wstream *ws)
 	U32P(&romfs_header_buf[0x18]) = LE32(file_hashtab_size);
 	U32P(&romfs_header_buf[0x1C]) = LE32(sizeof(romfs_header_buf) + dir_hashtab_size + ctx.dir_meta.used + file_hashtab_size);
 	U32P(&romfs_header_buf[0x20]) = LE32(ctx.file_meta.used);
-	U32P(&romfs_header_buf[0x24]) = LE32(sizeof(romfs_header_buf) + dir_hashtab_size + ctx.dir_meta.used + file_hashtab_size + ctx.file_meta.used);
+	U32P(&romfs_header_buf[0x24]) = ALIGN(LE32(sizeof(romfs_header_buf) + dir_hashtab_size + ctx.dir_meta.used + file_hashtab_size + ctx.file_meta.used), 0x10);
 
 	TRYLBL(NNC_WS_CALL(writer, write, romfs_header_buf, sizeof(romfs_header_buf)), out);
 
@@ -659,7 +659,9 @@ result nnc_write_romfs(nnc_vfs *vfs, nnc_wstream *ws)
 	TRYLBL(NNC_WS_CALL(writer, write, (u8 *) ctx.file_hash, file_hashtab_size), out);
 	TRYLBL(NNC_WS_CALL(writer, write, (u8 *) ctx.file_meta.buffer, ctx.file_meta.used), out);
 
-	/* and now the long-awaited files */
+	/* and now the long-awaited files, which we first need to put at an aligned offset obviously */
+	u32 now_off = NNC_WS_CALL0(writer, tell);
+	TRYLBL(nnc_write_padding(NNC_WSP(&writer), ALIGN(now_off, 0x10) - now_off), out);
 	TRYLBL(nnc_romfs_write_file_data(NNC_WSP(&writer), &vfs->root_directory), out);
 
 	/* and this close writes the IVFC hashes and headers and such */
