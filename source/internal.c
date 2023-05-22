@@ -229,11 +229,9 @@ nnc_result nnc_dynbuf_new(struct dynbuf *db, u32 initial_size)
 nnc_result nnc_dynbuf_push(struct dynbuf *db, u8 *data, u32 len)
 {
 	u32 new_used = db->used + len;
-//	printf("here, db->used = %u, new_used = %u, db->alloc = %u\n", db->used, new_used, db->alloc);
 	if(new_used >= db->alloc)
 	{
 		u32 new_alloc = db->alloc * 2;
-//		printf("new_alloc: %u\n", new_alloc);
 		u8 *new_buf = realloc(db->buffer, new_alloc);
 		if(!new_buf) return NNC_R_NOMEM;
 		db->buffer = new_buf;

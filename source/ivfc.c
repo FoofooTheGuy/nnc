@@ -215,6 +215,7 @@ static result nnc_ivfc_wclose(nnc_ivfc_writer *self)
 	u32 header_size = 0x0C + 0x18 * self->levels + 0x08;
 	u32 real_size   = ALIGN(header_size, 0x10);
 	/* Footer of the header */
+	U32P(&ivfc_header_buf[header_size - 0x04]) = 0;
 	U32P(&ivfc_header_buf[header_size - 0x08]) = LE32(header_size);  /* here goes the size of the IVFC header (without the alignment), after all the levels */
 	/* the rest of the header is aligned to 0x10 (?) */
 	memset(&ivfc_header_buf[header_size], 0x00, real_size - header_size);

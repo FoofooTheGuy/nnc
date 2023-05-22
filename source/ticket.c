@@ -7,6 +7,7 @@
 nnc_result nnc_read_ticket(nnc_rstream *rs, nnc_ticket *tik)
 {
 	result ret;
+	TRY(NNC_RS_PCALL(rs, seek_abs, 0));
 	TRY(nnc_read_sig(rs, &tik->sig));
 	u8 buf[0x124];
 	TRY(read_exact(rs, buf, sizeof(buf)));

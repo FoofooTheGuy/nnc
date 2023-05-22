@@ -192,7 +192,7 @@ nnc_result nnc_write_cia(
 	{
 		tmd_off = NNC_WS_PCALL0(ws, tell);
 		/* If this TMD is built, there is no way to sign the signature so it should always be zero'd out */
-		tmd_size = nnc_calculate_tmd_size(amount_contents, NNC_SIG_NONE);
+		tmd_size = nnc_calculate_tmd_size(amount_contents, NNC_SIG_NONE + NNC_SIG_RSA_2048_SHA256);
 		TRY(nnc_write_padding(ws, CALIGN(tmd_size)));
 		chunk_records = malloc(sizeof(nnc_chunk_record) * amount_contents);
 		if(!chunk_records) return NNC_R_NOMEM;
@@ -268,8 +268,11 @@ nnc_result nnc_write_cia(
 		TRYLBL(NNC_WS_PCALL(ws, seek, tmd_off), out);
 		nnc_tmd_header *hdr = (nnc_tmd_header *) tmd;
 		enum nnc_sigtype old_type = hdr->sig.type;
-		hdr->sig.type = NNC_SIG_NONE; /* just ensure that value is set, and restore it later */
+		char old_issuer[0x40]; strncpy(old_issuer, hdr->sig.issuer, 0x40);
+		hdr->sig.type = NNC_SIG_NONE + NNC_SIG_RSA_2048_SHA256; /* just ensure that value is set, and restore it later */
+		strncpy(hdr->sig.issuer, "Root-CA00000003-CP0000000b", 0x40);
 		TRYLBL(nnc_write_tmd(hdr, chunk_records, chunkcount, ws), out);
+		strncpy(hdr->sig.issuer, old_issuer, 0x40);
 		hdr->sig.type = old_type;
 		free(chunk_records);
 		chunk_records = NULL;
