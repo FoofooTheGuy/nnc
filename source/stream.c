@@ -78,7 +78,11 @@ result nnc_file_open(nnc_file *self, const char *name)
 }
 
 static nnc_result wfile_write(nnc_wfile *self, nnc_u8 *buf, nnc_u32 size)
-{ return fwrite(buf, 1, size, self->f) == size ? NNC_R_OK : NNC_R_FAIL_WRITE; }
+{
+	result res = fwrite(buf, 1, size, self->f) == size ? NNC_R_OK : NNC_R_FAIL_WRITE;
+	if(res == NNC_R_OK) self->off += size;
+	return res;
+}
 
 static result wfile_close(nnc_wfile *self)
 {
@@ -87,11 +91,13 @@ static result wfile_close(nnc_wfile *self)
 
 static nnc_result wfile_seek(nnc_wfile *self, nnc_u32 pos)
 {
-	return fseek(self->f, pos, SEEK_SET) == 0 ? NNC_R_OK : NNC_R_SEEK_RANGE;
+	result res = fseek(self->f, pos, SEEK_SET);
+	if(res == NNC_R_OK) self->off = pos;
+	return res;
 }
 
 static nnc_u32 wfile_tell(nnc_wfile *self)
-{ return ftell(self->f); }
+{ return self->off; }
 
 static nnc_result wfile_subreadstream(nnc_wfile *self, nnc_subview *out, nnc_u32 start, nnc_u32 len)
 {
@@ -121,6 +127,7 @@ result nnc_wfile_open(nnc_wfile *self, const char *name)
 	self->f = fopen(name, "wb+");
 	if(!self->f) return NNC_R_FAIL_OPEN;
 	self->funcs = &wfile_funcs;
+	self->off = 0;
 	return NNC_R_OK;
 }
 
