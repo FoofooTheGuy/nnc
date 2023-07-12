@@ -855,3 +855,48 @@ nnc_result nnc_write_padding(nnc_wstream *self, nnc_u32 count)
 	return NNC_R_OK;
 }
 
+/* wrapper funcs */
+
+nnc_result nnc_rs_read(nnc_rstream *rs, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead)
+{
+	if(!rs->funcs) return NNC_R_NOT_OPEN;
+	u32 nread;
+	nnc_result res = rs->funcs->read(rs, buf, max, &nread);
+	if(res != NNC_R_OK) return res;
+	if(totalRead) *totalRead = nread;
+	else if(/* !totalRead && */ nread != max) return NNC_R_TOO_SMALL;
+	return NNC_R_OK;
+}
+
+nnc_result nnc_rs_read_at(nnc_rstream *rs, nnc_u32 pos, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead)
+{
+	nnc_result res = nnc_rs_seek_abs(rs, pos);
+	if(res != NNC_R_OK) return res;
+	return nnc_rs_read(rs, buf, max, totalRead);
+}
+
+nnc_result nnc_rs_seek_abs(nnc_rstream *rs, nnc_u32 pos)
+{
+	if(!rs->funcs) return NNC_R_NOT_OPEN;
+	if(nnc_rs_tell(rs) == pos) return NNC_R_OK;
+	return rs->funcs->seek_abs(rs, pos);
+}
+
+nnc_result nnc_rs_seek_rel(nnc_rstream *rs, nnc_u32 pos)
+{
+	if(!rs->funcs) return NNC_R_NOT_OPEN;
+	if(pos == 0) return NNC_R_OK;
+	return rs->funcs->seek_rel(rs, pos);
+}
+
+nnc_u32 nnc_rs_size(nnc_rstream *rs) { return rs->funcs ? rs->funcs->size(rs) : 0; }
+nnc_u32 nnc_rs_tell(nnc_rstream *rs) { return rs->funcs ? rs->funcs->tell(rs) : 0; }
+
+void nnc_rs_close(nnc_rstream *rs)
+{
+	if(rs->funcs)
+	{
+		rs->funcs->close(rs);
+		rs->funcs = NULL;
+	}
+}

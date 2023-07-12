@@ -120,6 +120,53 @@ void nnc_subview_open(nnc_subview *self, nnc_rstream *child, nnc_u32 off, nnc_u3
  */
 void nnc_subview_delete_on_close(nnc_subview *self);
 
+/** \brief            Reads data from a stream.
+ *  \param rs         Stream to read from.
+ *  \param buf        Buffer to output data in.
+ *  \param max        Maximum amount of data to read.
+ *  \param totalRead  Output pointer to the amount of data actually read.
+ *                    If this param is NULL then reading less than `max` is instead treated like an error.
+ */
+nnc_result nnc_rs_read(nnc_rstream *rs, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead);
+
+/** \brief            Reads data from a stream at an offset.
+ *  \param rs         Stream to read from.
+ *  \param pos        Position in the stream to seek to before.
+ *  \param buf        Buffer to output data in.
+ *  \param max        Maximum amount of data to read.
+ *  \param totalRead  Output pointer to the amount of data actually read.
+ *                    If this param is NULL then reading less than `max` is instead treated like an error.
+ */
+nnc_result nnc_rs_read_at(nnc_rstream *rs, nnc_u32 pos, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead);
+
+/** \brief      Seeks to an absolute position in the stream.
+ *  \param rs   Stream to seek in.
+ *  \param pos  Position to seek to.
+ */
+nnc_result nnc_rs_seek_abs(nnc_rstream *rs, nnc_u32 pos);
+
+/** \brief      Seeks to the result of `nnc_rs_tell(rs) + pos` in the stream.
+ *  \param rs   Stream to seek in.
+ *  \param pos  Position to seek to.
+ */
+nnc_result nnc_rs_seek_rel(nnc_rstream *rs, nnc_u32 pos);
+
+/** \brief      Retrieves the total size of the stream.
+ *  \param rs   Stream to get size of.
+ */
+nnc_u32 nnc_rs_size(nnc_rstream *rs);
+
+/** \brief      Retrieves the current position of the stream.
+ *  \param rs   Stream to get the position of.
+ */
+nnc_u32 nnc_rs_tell(nnc_rstream *rs);
+
+/** \brief      Closes the stream and free()s associated memory.
+ *  \param rs   Stream to close.
+ *  \note       This function may be called multiple times.
+ */
+void nnc_rs_close(nnc_rstream *rs);
+
 /** \} */
 
 /** \{
