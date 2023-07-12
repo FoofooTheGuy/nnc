@@ -190,6 +190,7 @@ nnc_result nnc_seeds_seeddb(nnc_rstream *rs, nnc_seeddb *seeddb)
 
 result nnc_scan_seeddb(nnc_seeddb *seeddb)
 {
+	seeddb->entries = NULL;
 	char path[SUP_FILE_NAME_LEN];
 	if(!find_support_file("seeddb.bin", path))
 		return NNC_R_NOT_FOUND;
