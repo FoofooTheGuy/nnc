@@ -62,6 +62,7 @@ typedef struct nnc_rstream {
 typedef struct nnc_file {
 	const nnc_rstream_funcs *funcs;
 	nnc_u32 size;
+	nnc_u32 off;
 	FILE *f;
 	nnc_u8 flags;
 } nnc_file;

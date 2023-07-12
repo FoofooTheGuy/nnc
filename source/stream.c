@@ -1,16 +1,49 @@
 
-#define _DEFAULT_SOURCE
-#define _BSD_SOURCE
+/* #if NNC_PLATFORM_UNIX | NNC_PLATFORM_3DS */
+	#define _LARGEFILE64_SOURCE
+	#define _DEFAULT_SOURCE
+	#define _BSD_SOURCE
+/* #endif */
+
+#include "./internal.h"
+
+#if NNC_PLATFORM_UNIX || NNC_PLATFORM_3DS
+	#include <unistd.h>
+#endif
 
 #include <nnc/crypto.h>
 #include <nnc/stream.h>
 #include <stdlib.h>
 #include <string.h>
-#include "./internal.h"
+
+#define FILE_SIZE_NULL ((u32) -1)
 
 enum nnc_file_flags {
 	NNC_FILE_KEEP_ALIVE = 1,
 };
+
+static result nnc_seek_file_abs(FILE *file, u32 pos)
+{
+	int res;
+	if(pos <= INT32_MAX || sizeof(long) > 4)
+		res = fseek(file, pos, SEEK_SET);
+#if NNC_PLATFORM_WINDOWS
+	else
+		res = _fseeki64(file, pos, SEEK_SET);
+#elif NNC_PLATFORM_UNIX || NNC_PLATFORM_3DS
+	else /* This should be fine, be sure to test */
+		res = lseek64(fileno(file), pos, SEEK_SET);
+#else
+	else
+	{
+		/* ugly hack */
+		res = fseek(file, INT32_MAX, SEEK_SET);
+		if(res == 0)
+			res = fseek(file, pos - INT32_MAX, SEEK_CUR);
+	}
+#endif
+	return res == 0 ? NNC_R_OK : NNC_R_SEEK_RANGE;
+}
 
 static result file_read(nnc_file *self, u8 *buf, u32 max, u32 *totalRead)
 {
@@ -25,16 +58,14 @@ static result file_seek_abs(nnc_file *self, u32 pos)
 {
 	if(self->size == 0 && pos == 0) return NNC_R_OK;
 	if(pos >= self->size) return NNC_R_SEEK_RANGE;
-	fseek(self->f, pos, SEEK_SET);
-	return NNC_R_OK;
+	return nnc_seek_file_abs(self->f, pos);
 }
 
 static result file_seek_rel(nnc_file *self, u32 pos)
 {
-	u32 npos = ftell(self->f) + pos;
+	u32 npos = self->off + pos;
 	if(npos >= self->size) return NNC_R_SEEK_RANGE;
-	fseek(self->f, npos, SEEK_SET);
-	return NNC_R_OK;
+	return nnc_seek_file_abs(self->f, npos);
 }
 
 static u32 file_size(nnc_file *self)
@@ -47,7 +78,7 @@ static void file_close(nnc_file *self)
 }
 
 static u32 file_tell(nnc_file *self)
-{ return ftell(self->f); }
+{ return self->off; }
 
 static const nnc_rstream_funcs file_funcs = {
 	.read = (nnc_read_func) file_read,
@@ -58,12 +89,17 @@ static const nnc_rstream_funcs file_funcs = {
 	.tell = (nnc_tell_func) file_tell,
 };
 
-static u32 get_file_size(FILE *file)
+static u32 get_file_size(FILE *file, u32 seekback)
 {
-	u32 pos = ftell(file);
 	fseek(file, 0, SEEK_END);
-	u32 size = ftell(file);
-	fseek(file, pos, SEEK_SET);
+#if NNC_PLATFORM_WINDOWS
+	u32 size = _ftelli64(file);
+#elif NNC_PLATFORM_UNIX || NNC_PLATFORM_3DS
+	u32 size = ftello64(file);
+#else
+	u32 size = ftell(file); /* dangerous call */
+#endif
+	nnc_seek_file_abs(file, seekback);
 	return size;
 }
 
@@ -72,9 +108,9 @@ result nnc_file_open(nnc_file *self, const char *name)
 	self->f = fopen(name, "rb");
 	self->flags = 0;
 	if(!self->f) return NNC_R_FAIL_OPEN;
-	self->size = get_file_size(self->f);
+	self->size = get_file_size(self->f, 0);
 	self->funcs = &file_funcs;
-	return NNC_R_OK;
+	return self->size == FILE_SIZE_NULL ? NNC_R_FAIL_OPEN : NNC_R_OK;
 }
 
 static nnc_result wfile_write(nnc_wfile *self, nnc_u8 *buf, nnc_u32 size)
@@ -91,7 +127,7 @@ static result wfile_close(nnc_wfile *self)
 
 static nnc_result wfile_seek(nnc_wfile *self, nnc_u32 pos)
 {
-	result res = fseek(self->f, pos, SEEK_SET);
+	result res = nnc_seek_file_abs(self->f, pos);
 	if(res == NNC_R_OK) self->off = pos;
 	return res;
 }
@@ -106,9 +142,11 @@ static nnc_result wfile_subreadstream(nnc_wfile *self, nnc_subview *out, nnc_u32
 	substream->funcs = &file_funcs;
 	substream->flags = NNC_FILE_KEEP_ALIVE;
 	substream->f = self->f;
-	substream->size = get_file_size(self->f);
+	substream->size = get_file_size(self->f, self->off);
 	if(start + len > substream->size)
 		return NNC_R_SEEK_RANGE;
+	if(substream->size == FILE_SIZE_NULL)
+		return NNC_R_FAIL_OPEN;
 	nnc_subview_open(out, NNC_RSP(substream), start, len);
 	nnc_subview_delete_on_close(out);
 	return NNC_R_OK;
@@ -687,10 +725,9 @@ static nnc_u64 nnc_filegen_node_size(nnc_vfs_generator_data udata)
 	/* We can use the C FILE api as a generic fallback */
 	FILE *f = fopen(data->path, "rb");
 	if(!f) return 0;
-	fseek(f, 0, SEEK_END);
-	long size = ftell(f);
+	u64 ret = get_file_size(f, 0);
 	fclose(f);
-	return size;
+	return ret;
 #endif
 }
 
