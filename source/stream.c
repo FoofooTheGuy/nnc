@@ -22,7 +22,7 @@ enum nnc_file_flags {
 	NNC_FILE_KEEP_ALIVE = 1,
 };
 
-static result nnc_seek_file_abs(FILE *file, u32 pos)
+static result nnc_seek_file_abs(FILE *file, u32 pos, u32 *npos)
 {
 	int res;
 	if(pos <= INT32_MAX || sizeof(long) > 4)
@@ -42,6 +42,8 @@ static result nnc_seek_file_abs(FILE *file, u32 pos)
 			res = fseek(file, pos - INT32_MAX, SEEK_CUR);
 	}
 #endif
+	if(res == 0 && npos)
+		*npos = pos;
 	return res == 0 ? NNC_R_OK : NNC_R_SEEK_RANGE;
 }
 
@@ -51,6 +53,7 @@ static result file_read(nnc_file *self, u8 *buf, u32 max, u32 *totalRead)
 	if(totalRead) *totalRead = total;
 	if(total != max)
 		return ferror(self->f) ? NNC_R_FAIL_READ : NNC_R_OK;
+	self->off += total;
 	return NNC_R_OK;
 }
 
@@ -58,27 +61,24 @@ static result file_seek_abs(nnc_file *self, u32 pos)
 {
 	if(self->size == 0 && pos == 0) return NNC_R_OK;
 	if(pos >= self->size) return NNC_R_SEEK_RANGE;
-	return nnc_seek_file_abs(self->f, pos);
+	return nnc_seek_file_abs(self->f, pos, &self->off);
 }
 
 static result file_seek_rel(nnc_file *self, u32 pos)
 {
 	u32 npos = self->off + pos;
 	if(npos >= self->size) return NNC_R_SEEK_RANGE;
-	return nnc_seek_file_abs(self->f, npos);
+	return nnc_seek_file_abs(self->f, npos, &self->off);
 }
 
-static u32 file_size(nnc_file *self)
-{ return self->size; }
+static u32 file_size(nnc_file *self) { return self->size; }
+static u32 file_tell(nnc_file *self) { return self->off; }
 
 static void file_close(nnc_file *self)
 {
 	if(!(self->flags & NNC_FILE_KEEP_ALIVE))
 		fclose(self->f);
 }
-
-static u32 file_tell(nnc_file *self)
-{ return self->off; }
 
 static const nnc_rstream_funcs file_funcs = {
 	.read = (nnc_read_func) file_read,
@@ -92,14 +92,15 @@ static const nnc_rstream_funcs file_funcs = {
 static u32 get_file_size(FILE *file, u32 seekback)
 {
 	fseek(file, 0, SEEK_END);
+	u32 size
 #if NNC_PLATFORM_WINDOWS
-	u32 size = _ftelli64(file);
+		= _ftelli64(file);
 #elif NNC_PLATFORM_UNIX || NNC_PLATFORM_3DS
-	u32 size = ftello64(file);
+		= ftello64(file);
 #else
-	u32 size = ftell(file); /* dangerous call */
+		= ftell(file); /* dangerous call */
 #endif
-	nnc_seek_file_abs(file, seekback);
+	nnc_seek_file_abs(file, seekback, NULL);
 	return size;
 }
 
@@ -127,9 +128,7 @@ static result wfile_close(nnc_wfile *self)
 
 static nnc_result wfile_seek(nnc_wfile *self, nnc_u32 pos)
 {
-	result res = nnc_seek_file_abs(self->f, pos);
-	if(res == NNC_R_OK) self->off = pos;
-	return res;
+	return nnc_seek_file_abs(self->f, pos, &self->off);
 }
 
 static nnc_u32 wfile_tell(nnc_wfile *self)
@@ -395,17 +394,21 @@ result nnc_vfs_init(nnc_vfs *vfs)
 	return nnc_vfs_initialize_directory_node(&vfs->root_directory, NULL, vfs);
 }
 
+static void nnc_vfs_free_file_node(nnc_vfs_file_node *file)
+{
+	file->generator->delete_data(file->data);
+	free(file->vname);
+}
+
 static void nnc_vfs_free_directory_node(nnc_vfs_directory_node *dir)
 {
-	for(unsigned i = 0; i < dir->dircount; ++i) nnc_vfs_free_directory_node(&dir->directory_children[i]);
+	for(unsigned i = 0; i < dir->dircount; ++i)
+		nnc_vfs_free_directory_node(&dir->directory_children[i]);
+	dir->associated_vfs->totaldirs -= dir->dircount;
 
-	nnc_vfs_file_node *fnode;
 	for(unsigned i = 0; i < dir->filecount; ++i)
-	{
-		fnode = &dir->file_children[i];
-		fnode->generator->delete_data(fnode->data);
-		free(fnode->vname);
-	}
+		nnc_vfs_free_file_node(&dir->file_children[i]);
+	dir->associated_vfs->totalfiles -= dir->filecount;
 
 	free(dir->directory_children);
 	free(dir->file_children);
@@ -420,6 +423,22 @@ void nnc_vfs_free(nnc_vfs *vfs)
 		vfs->root_directory.directory_children = NULL;
 		vfs->root_directory.file_children = NULL;
 	}
+}
+
+void nnc_vfs_free_files(nnc_vfs_directory_node *dir)
+{
+	for(unsigned i = 0; i < dir->filecount; ++i)
+		nnc_vfs_free_file_node(&dir->file_children[i]);
+	dir->associated_vfs->totalfiles -= dir->filecount;
+	dir->filecount = 0;
+}
+
+void nnc_vfs_free_directories(nnc_vfs_directory_node *dir)
+{
+	for(unsigned i = 0; i < dir->dircount; ++i)
+		nnc_vfs_free_directory_node(&dir->directory_children[i]);
+	dir->associated_vfs->totaldirs -= dir->dircount;
+	dir->dircount = 0;
 }
 
 nnc_result nnc_vfs_add_file(nnc_vfs_directory_node *dir, const char *vname, const nnc_vfs_reader_generator *generator, ... /* generator parameters */)
@@ -676,15 +695,102 @@ out:
 	return ret;
 }
 
-nnc_result nnc_vfs_open_node(nnc_vfs_file_node *node, nnc_vfs_stream **res)
+static nnc_vfs_node *nnc_vfs_search_array(nnc_vfs_node *nodes, unsigned nodeslen, const char *name, size_t namelen)
 {
-	return node->generator->make_reader(node->data, res);
+	for(unsigned i = 0; i < nodeslen; ++i)
+		if(strlen(nodes[i].vname) == namelen && memcmp(nodes[i].vname, name, namelen) == 0)
+			return &nodes[i];
+	return NULL;
 }
 
-void nnc_vfs_close_node(nnc_vfs_stream *reader)
+nnc_vfs_directory_node *nnc_vfs_search_dirname(nnc_vfs_directory_node *node, const char *path, const char **last_component, size_t *last_component_len)
 {
-	NNC_RS_PCALL0(reader, close);
-	free(reader);
+	while(*path == '/')
+		++path;
+	const char *last_comp = strrchr(path, '/'), *next_slash;
+	/* TODO: Test for paths like /hello/my-dir/dir/; last_comp should be at the / before dir, not the actual last one */
+	/* there is only one component; we are already in the dirname:
+	 *   /hello  -> dirname is /; root
+	 *    hello  -> dirname is /; root */
+	if(!last_comp)
+	{
+		last_comp = path;
+		goto out;
+	}
+	++last_comp;
+
+	size_t namelen;
+	while(path != last_comp)
+	{
+		next_slash = strchr(path, '/');
+		/* this situation should be impossible, as we do not process the last slash;
+		 * let's just return NULL to indicate failure */
+		if(!next_slash) return NULL;
+		namelen = next_slash - path;
+		node = (nnc_vfs_directory_node *) nnc_vfs_search_array((nnc_vfs_node *) node->directory_children, node->dircount, path, namelen);
+		if(!node) return NULL;
+		path = next_slash;
+		while(*path == '/')
+			++path;
+	}
+
+out:
+	if(last_component && last_component_len)
+	{
+		*last_component = last_comp;
+		*last_component_len = strlen(last_comp);
+	}
+	return node;
+}
+
+nnc_vfs_file_node *nnc_vfs_file_by_name(nnc_vfs_directory_node *root_dir, const char *name)
+{
+	const char *last_component; size_t last_component_len;
+	nnc_vfs_directory_node *last_node = nnc_vfs_search_dirname(root_dir, name, &last_component, &last_component_len);
+	if(!last_node) return NULL;
+	return (nnc_vfs_file_node *) nnc_vfs_search_array((nnc_vfs_node *) last_node->file_children, last_node->filecount, last_component, last_component_len);
+}
+
+nnc_vfs_directory_node *nnc_vfs_directory_by_name(nnc_vfs_directory_node *root_dir, const char *name)
+{
+	const char *last_component; size_t last_component_len;
+	nnc_vfs_directory_node *last_node = nnc_vfs_search_dirname(root_dir, name, &last_component, &last_component_len);
+	if(!last_node) return NULL;
+	return (nnc_vfs_directory_node *) nnc_vfs_search_array((nnc_vfs_node *) last_node->directory_children, last_node->dircount, last_component, last_component_len);
+}
+
+static result vfs_stream_read(nnc_vfs_stream *self, u8 *buf, u32 max, u32 *totalRead) { return self->substream->funcs->read(self->substream, buf, max, totalRead); }
+static result vfs_stream_seek_abs(nnc_vfs_stream *self, u32 pos) { return self->substream->funcs->seek_abs(self->substream, pos); }
+static result vfs_stream_seek_rel(nnc_vfs_stream *self, u32 pos) { return self->substream->funcs->seek_rel(self->substream, pos); }
+static u32 vfs_stream_size(nnc_vfs_stream *self) { return self->substream->funcs->size(self->substream); }
+static u32 vfs_stream_tell(nnc_vfs_stream *self) { return self->substream->funcs->tell(self->substream); }
+static void vfs_stream_close(nnc_vfs_stream *self)
+{
+	if(self->flags & NNC_VFS_STREAM_RECURSIVE_CLOSE)
+		self->substream->funcs->close(self->substream);
+	if(self->flags & NNC_VFS_STREAM_FREE_ON_CLOSE)
+		free(self->substream);
+}
+
+static const nnc_rstream_funcs vfs_stream_funcs = {
+	.read = (nnc_read_func) vfs_stream_read,
+	.seek_abs = (nnc_seek_abs_func) vfs_stream_seek_abs,
+	.seek_rel = (nnc_seek_rel_func) vfs_stream_seek_rel,
+	.size = (nnc_size_func) vfs_stream_size,
+	.close = (nnc_close_func) vfs_stream_close,
+	.tell = (nnc_tell_func) vfs_stream_tell,
+};
+
+void nnc_vfs_open_stream(nnc_vfs_stream *self, nnc_rstream *substream, int flags)
+{
+	self->funcs = &vfs_stream_funcs;
+	self->substream = substream;
+	self->flags = flags;
+}
+
+nnc_result nnc_vfs_open_node(nnc_vfs_file_node *node, nnc_vfs_stream *res)
+{
+	return node->generator->make_reader(node->data, res);
 }
 
 u64 nnc_vfs_node_size(nnc_vfs_file_node *node)
@@ -703,14 +809,14 @@ static nnc_result nnc_filegen_initialize(nnc_vfs_generator_data *udata, va_list 
 	return *udata ? NNC_R_OK : NNC_R_NOMEM;
 }
 
-static nnc_result nnc_filegen_make_reader(nnc_vfs_generator_data udata, nnc_vfs_stream **out)
+static nnc_result nnc_filegen_make_reader(nnc_vfs_generator_data udata, nnc_vfs_stream *out)
 {
 	struct nnc_filegen_data *data = (struct nnc_filegen_data *) udata;
 	nnc_file *reader = malloc(sizeof(nnc_file));
 	if(!reader) return NNC_R_NOMEM;
 	nnc_result res = nnc_file_open(reader, data->path);
 	if(res != NNC_R_OK) free(reader);
-	*out = (nnc_vfs_stream *) reader;
+	nnc_vfs_open_stream(out, (nnc_rstream *) reader, NNC_VFS_STREAM_FULL_CLOSE);
 	return res;
 }
 
@@ -743,75 +849,83 @@ const nnc_vfs_reader_generator nnc__internal_vfs_generator_file = {
 	.delete_data = nnc_filegen_delete_data,
 };
 
-static nnc_result nnc_sgen_make_reader(nnc_vfs_generator_data udata, nnc_vfs_stream **out_stream)
-{
-	nnc_rstream *rs = (nnc_rstream *) udata;
-	NNC_RS_PCALL(rs, seek_abs, 0);
-	*out_stream = rs;
-	return NNC_R_OK;
-}
-
-static nnc_result nnc_sgen_initialize(nnc_vfs_generator_data *out_udata, va_list params)
-{
-	nnc_rstream *rs = va_arg(params, nnc_rstream *);
-	*out_udata = rs;
-	return NNC_R_OK;
-}
-
-static size_t nnc_sgen_node_size(nnc_vfs_generator_data udata)
-{
-	nnc_rstream *rs = (nnc_rstream *) udata;
-	return NNC_RS_PCALL0(rs, size);
-}
-
-static void nnc_sgen_delete_data(nnc_vfs_generator_data udata)
-{
-	/* nothing to free here ... */
-	(void) udata;
-}
-
-const nnc_vfs_reader_generator nnc__internal_vfs_generator_reader = {
-	.initialize  = nnc_sgen_initialize,
-	.make_reader = nnc_sgen_make_reader,
-	.node_size   = nnc_sgen_node_size,
-	.delete_data = nnc_sgen_delete_data,
+struct rgen_data {
+	nnc_rstream *substream;
+	int flags;
 };
 
-static nnc_result nnc_svgen_initialize(nnc_vfs_generator_data *out_udata, va_list params)
+static nnc_result nnc_rgen_initialize(nnc_vfs_generator_data *out_udata, va_list params)
 {
-	nnc_subview *sv = va_arg(params, nnc_subview *);
-	nnc_vfs_generator_data data = malloc(sizeof(nnc_subview));
+	struct rgen_data *data = malloc(sizeof(struct rgen_data));
 	if(!data) return NNC_R_NOMEM;
-	memcpy(data, sv, sizeof(nnc_subview));
+	data->substream = va_arg(params, nnc_rstream *);
+	data->flags = va_arg(params, int);
 	*out_udata = data;
 	return NNC_R_OK;
 }
 
-static nnc_result nnc_svgen_make_reader(nnc_vfs_generator_data udata, nnc_vfs_stream **out_stream)
+static nnc_result nnc_rgen_make_reader(nnc_vfs_generator_data udata, nnc_vfs_stream *out_stream)
 {
-	*out_stream = malloc(sizeof(nnc_subview));
-	if(!*out_stream) return NNC_R_NOMEM;
-	memcpy(*out_stream, udata, sizeof(nnc_subview));
+	struct rgen_data *data = (struct rgen_data *) udata;
+	nnc_vfs_open_stream(out_stream, data->substream, NNC_VFS_STREAM_NONE);
+	return nnc_rs_seek_abs(data->substream, 0);
+}
+
+static size_t nnc_rgen_node_size(nnc_vfs_generator_data udata)
+{
+	struct rgen_data *data = (struct rgen_data *) udata;
+	return nnc_rs_size(data->substream);
+}
+
+static void nnc_rgen_delete_data(nnc_vfs_generator_data udata)
+{
+	struct rgen_data *data = (struct rgen_data *) udata;
+	if(data->flags & NNC_VFS_STREAM_RECURSIVE_CLOSE)
+		nnc_rs_close(data->substream);
+	if(data->flags & NNC_VFS_STREAM_FREE_ON_CLOSE)
+		free(data->substream);
+	free(data);
+}
+
+const nnc_vfs_reader_generator nnc__internal_vfs_generator_reader = {
+	.initialize  = nnc_rgen_initialize,
+	.make_reader = nnc_rgen_make_reader,
+	.node_size   = nnc_rgen_node_size,
+	.delete_data = nnc_rgen_delete_data,
+};
+
+static nnc_result nnc_rdcpygen_initialize(nnc_vfs_generator_data *out_udata, va_list params)
+{
+	struct rgen_data *data = malloc(sizeof(struct rgen_data));
+	if(!data) return NNC_R_NOMEM;
+
+	nnc_rstream *substream_local = va_arg(params, nnc_rstream *);
+	size_t objsize = va_arg(params, size_t);
+	data->flags = va_arg(params, int);
+
+	data->substream = malloc(objsize);
+	if(!data->substream) return NNC_R_NOMEM;
+	memcpy(data->substream, substream_local, objsize);
+
+	*out_udata = data;
 	return NNC_R_OK;
 }
 
-static size_t nnc_svgen_node_size(nnc_vfs_generator_data udata)
+static void nnc_rdcpygen_delete_data(nnc_vfs_generator_data udata)
 {
-	nnc_subview *sv = (nnc_subview *) udata;
-	return sv->size;
+	struct rgen_data *data = (struct rgen_data *) udata;
+	if(data->flags & NNC_VFS_STREAM_RECURSIVE_CLOSE)
+		data->substream->funcs->close(data->substream);
+	free(data->substream);
+	free(data);
 }
 
-static void nnc_svgen_delete_data(nnc_vfs_generator_data udata)
-{
-	free(udata);
-}
 
-
-const nnc_vfs_reader_generator nnc__internal_vfs_generator_subview = {
-	.initialize  = nnc_svgen_initialize,
-	.make_reader = nnc_svgen_make_reader,
-	.node_size   = nnc_svgen_node_size,
-	.delete_data = nnc_svgen_delete_data,
+const nnc_vfs_reader_generator nnc__internal_vfs_generator_reader_copy = {
+	.initialize  = nnc_rdcpygen_initialize,
+	.make_reader = nnc_rgen_make_reader,
+	.node_size   = nnc_rgen_node_size,
+	.delete_data = nnc_rdcpygen_delete_data,
 };
 
 //
@@ -857,7 +971,7 @@ nnc_result nnc_write_padding(nnc_wstream *self, nnc_u32 count)
 
 /* wrapper funcs */
 
-nnc_result nnc_rs_read(nnc_rstream *rs, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead)
+nnc_result nnc_rs_read_(nnc_rstream *rs, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead)
 {
 	if(!rs->funcs) return NNC_R_NOT_OPEN;
 	u32 nread;
@@ -868,31 +982,31 @@ nnc_result nnc_rs_read(nnc_rstream *rs, nnc_u8 *buf, nnc_u32 max, nnc_u32 *total
 	return NNC_R_OK;
 }
 
-nnc_result nnc_rs_read_at(nnc_rstream *rs, nnc_u32 pos, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead)
+nnc_result nnc_rs_read_at_(nnc_rstream *rs, nnc_u32 pos, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead)
 {
 	nnc_result res = nnc_rs_seek_abs(rs, pos);
 	if(res != NNC_R_OK) return res;
 	return nnc_rs_read(rs, buf, max, totalRead);
 }
 
-nnc_result nnc_rs_seek_abs(nnc_rstream *rs, nnc_u32 pos)
+nnc_result nnc_rs_seek_abs_(nnc_rstream *rs, nnc_u32 pos)
 {
 	if(!rs->funcs) return NNC_R_NOT_OPEN;
 	if(nnc_rs_tell(rs) == pos) return NNC_R_OK;
 	return rs->funcs->seek_abs(rs, pos);
 }
 
-nnc_result nnc_rs_seek_rel(nnc_rstream *rs, nnc_u32 pos)
+nnc_result nnc_rs_seek_rel_(nnc_rstream *rs, nnc_u32 pos)
 {
 	if(!rs->funcs) return NNC_R_NOT_OPEN;
 	if(pos == 0) return NNC_R_OK;
 	return rs->funcs->seek_rel(rs, pos);
 }
 
-nnc_u32 nnc_rs_size(nnc_rstream *rs) { return rs->funcs ? rs->funcs->size(rs) : 0; }
-nnc_u32 nnc_rs_tell(nnc_rstream *rs) { return rs->funcs ? rs->funcs->tell(rs) : 0; }
+nnc_u32 nnc_rs_size_(nnc_rstream *rs) { return rs->funcs ? rs->funcs->size(rs) : 0; }
+nnc_u32 nnc_rs_tell_(nnc_rstream *rs) { return rs->funcs ? rs->funcs->tell(rs) : 0; }
 
-void nnc_rs_close(nnc_rstream *rs)
+void nnc_rs_close_(nnc_rstream *rs)
 {
 	if(rs->funcs)
 	{
