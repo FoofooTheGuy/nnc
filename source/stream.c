@@ -108,6 +108,7 @@ result nnc_file_open(nnc_file *self, const char *name)
 {
 	self->f = fopen(name, "rb");
 	self->flags = 0;
+	self->off = 0;
 	if(!self->f) return NNC_R_FAIL_OPEN;
 	self->size = get_file_size(self->f, 0);
 	self->funcs = &file_funcs;

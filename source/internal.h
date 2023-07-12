@@ -35,6 +35,8 @@
 
 #define rstream nnc_rstream
 
+/* TODO: These should be ported to big-endian platforms as well */
+
 #define BE16(a) (bswap16(a))
 #define BE32(a) (bswap32(a))
 #define BE64(a) (bswap64(a))
@@ -63,6 +65,7 @@
 #define ALIGN(a, n)        (((a) + ((n) - 1)) & ~((n) - 1)) /* N.B.: `n' must be a power of 2! */
 #define ALIGN_DOWN(a, n)   (((a) & ~((n) - 1)))             /* N.B.: `n' must be a power of 2! */
 #define IS_UNALIGNED(a, n) ((a) & ((n) - 1))                /* N.B.: `n' must be a power of 2! */
+#define IS_ALIGNED(a, n)   (!IS_UNALIGNED(a, n))            /* N.B.: `n' must be a power of 2! */
 
 #define NNC_BYTE_TO_MU(a) (ALIGN(a, NNC_MEDIA_UNIT) / NNC_MEDIA_UNIT)
 

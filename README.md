@@ -8,7 +8,7 @@ To build you need mbedtls and a C compiler supporting at least C99
 
 Here follows a list of the file formats nnc supports:
 
- * cia (read)
+ * cia (read/write)
  * exefs (read/write)
  * exheader (read)
  * ivfc (read/write)

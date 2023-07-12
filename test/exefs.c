@@ -84,7 +84,7 @@ int build_exefs_main(int argc, char *argv[])
 	int ret = 0;
 	nnc_result res;
 
-	nnc_wfile outf = { NULL, NULL };
+	nnc_wfile outf = { NULL, 0, NULL };
 	nnc_vfs vfs;
 
 	if((res = nnc_vfs_init(&vfs)) != NNC_R_OK) goto err;

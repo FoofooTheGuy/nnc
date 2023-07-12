@@ -8,7 +8,6 @@
 #include "./internal.h"
 
 #define INVAL 0xFFFFFFFF /* aka UINT32_MAX */
-#define MAX_PATH 1024    /* no good rationale for this specific limit except it looking nice */
 
 
 result nnc_read_romfs_header(rstream *rs, nnc_romfs_header *romfs)
@@ -347,7 +346,7 @@ static result nnc_romfs_to_vfs_iterate(nnc_romfs_ctx *ctx, nnc_romfs_info *info,
 			/* first we need to open the subview */
 			TRY(nnc_romfs_open_subview(ctx, &sv, &ent));
 			/* now we can add a file with reader, which will copy the subview */
-			TRY(nnc_vfs_add_file(dir, name, NNC_VFS_SUBVIEW(&sv)));
+			TRY(nnc_vfs_add_file(dir, name, NNC_VFS_READER_COPY(sv, NNC_VFS_STREAM_NONE)));
 		}
 	}
 
@@ -579,15 +578,15 @@ static result nnc_romfs_write_meta(struct romfs_writer_ctx *ctx, nnc_vfs_directo
 static result nnc_romfs_write_file_data(nnc_wstream *ws, nnc_vfs_directory_node *dir)
 {
 	u32 copied, padding;
+	nnc_vfs_stream stream;
 	result ret;
 
 	/* write all files... */
 	for(unsigned i = 0; i < dir->filecount; ++i)
 	{
-		nnc_vfs_stream *stream;
 		TRY(nnc_vfs_open_node(&dir->file_children[i], &stream));
-		ret = nnc_copy(stream, ws, &copied);
-		nnc_vfs_close_node(stream);
+		ret = nnc_copy((nnc_rstream *) &stream, ws, &copied);
+		nnc_rs_close(&stream);
 		if(ret != NNC_R_OK)
 			return ret;
 		padding = ALIGN(copied, 16) - copied;

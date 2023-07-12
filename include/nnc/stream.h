@@ -121,51 +121,66 @@ void nnc_subview_open(nnc_subview *self, nnc_rstream *child, nnc_u32 off, nnc_u3
 void nnc_subview_delete_on_close(nnc_subview *self);
 
 /** \brief            Reads data from a stream.
- *  \param rs         Stream to read from.
- *  \param buf        Buffer to output data in.
- *  \param max        Maximum amount of data to read.
- *  \param totalRead  Output pointer to the amount of data actually read.
+ *  \param rs         [#nnc_rstream *] Stream to read from.
+ *  \param buf        [#nnc_u8 *] Buffer to output data in.
+ *  \param max        [#nnc_u32] Maximum amount of data to read.
+ *  \param totalRead  [#nnc_u32 *] Output pointer to the amount of data actually read.
  *                    If this param is NULL then reading less than `max` is instead treated like an error.
  */
-nnc_result nnc_rs_read(nnc_rstream *rs, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead);
+#define nnc_rs_read(rs, buf, max, totalRead) nnc_rs_read_((nnc_rstream *) (rs), buf, max, totalRead)
+
+/** \cond INTERNAL */
+nnc_result nnc_rs_read_(nnc_rstream *rs, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead);
+nnc_result nnc_rs_read_at_(nnc_rstream *rs, nnc_u32 pos, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead);
+nnc_result nnc_rs_seek_abs_(nnc_rstream *rs, nnc_u32 pos);
+nnc_result nnc_rs_seek_rel_(nnc_rstream *rs, nnc_u32 pos);
+nnc_u32 nnc_rs_tell_(nnc_rstream *rs);
+nnc_u32 nnc_rs_size_(nnc_rstream *rs);
+void nnc_rs_close_(nnc_rstream *rs);
+/** \endcond */
 
 /** \brief            Reads data from a stream at an offset.
- *  \param rs         Stream to read from.
- *  \param pos        Position in the stream to seek to before.
- *  \param buf        Buffer to output data in.
- *  \param max        Maximum amount of data to read.
- *  \param totalRead  Output pointer to the amount of data actually read.
+ *  \param rs         [#nnc_rstream *] Stream to read from.
+ *  \param pos        [#nnc_u32] Position in the stream to seek to before.
+ *  \param buf        [#nnc_u8 *] Buffer to output data in.
+ *  \param max        [#nnc_u32] Maximum amount of data to read.
+ *  \param totalRead  [#nnc_u32 *] Output pointer to the amount of data actually read.
  *                    If this param is NULL then reading less than `max` is instead treated like an error.
+ *  \returns    [#nnc_result] Operation result.
  */
-nnc_result nnc_rs_read_at(nnc_rstream *rs, nnc_u32 pos, nnc_u8 *buf, nnc_u32 max, nnc_u32 *totalRead);
+#define nnc_rs_read_at(rs, pos, buf, max, totalRead) nnc_rs_read_at_((nnc_rstream *) (rs), pos, buf, max, totalRead)
 
 /** \brief      Seeks to an absolute position in the stream.
- *  \param rs   Stream to seek in.
- *  \param pos  Position to seek to.
+ *  \param rs   [#nnc_rstream *] Stream to seek in.
+ *  \param pos  [#nnc_u32] Position to seek to.
+ *  \returns    [#nnc_result] Operation result.
  */
-nnc_result nnc_rs_seek_abs(nnc_rstream *rs, nnc_u32 pos);
+#define nnc_rs_seek_abs(rs, pos) nnc_rs_seek_abs_((nnc_rstream *) (rs), pos)
 
 /** \brief      Seeks to the result of `nnc_rs_tell(rs) + pos` in the stream.
- *  \param rs   Stream to seek in.
- *  \param pos  Position to seek to.
+ *  \param rs   [#nnc_rstream *] Stream to seek in.
+ *  \param pos  [#nnc_u32] Position to seek to.
+ *  \returns    [#nnc_result] Operation result.
  */
-nnc_result nnc_rs_seek_rel(nnc_rstream *rs, nnc_u32 pos);
+#define nnc_rs_seek_rel(rs, pos) nnc_rs_seek_rel_((nnc_rstream *) (rs), pos)
 
 /** \brief      Retrieves the total size of the stream.
- *  \param rs   Stream to get size of.
+ *  \param rs   [#nnc_rstream *] Stream to get size of.
+ *  \returns    [#nnc_u32] Total stream size.
  */
-nnc_u32 nnc_rs_size(nnc_rstream *rs);
+#define nnc_rs_size(rs) nnc_rs_size_((nnc_rstream *) (rs))
 
 /** \brief      Retrieves the current position of the stream.
- *  \param rs   Stream to get the position of.
+ *  \param rs   [#nnc_rstream *] Stream to get the position of.
+ *  \returns    [#nnc_u32] Current stream position.
  */
-nnc_u32 nnc_rs_tell(nnc_rstream *rs);
+#define nnc_rs_tell(rs) nnc_rs_tell_((nnc_rstream *) (rs))
 
 /** \brief      Closes the stream and free()s associated memory.
  *  \param rs   Stream to close.
- *  \note       This function may be called multiple times.
+ *  \note       [#nnc_rstream *] This function may be called multiple times.
  */
-void nnc_rs_close(nnc_rstream *rs);
+#define nnc_rs_close(rs) nnc_rs_close_((nnc_rstream *) (rs))
 
 /** \} */
 
@@ -243,22 +258,34 @@ nnc_result nnc_open_header_saver(nnc_header_saver *self, nnc_wstream *child, nnc
 
 /** \brief VFS vfile adding parameters for adding a real file */
 #define NNC_VFS_FILE(filename) &nnc__internal_vfs_generator_file, (filename)
-/** \brief VFS vfile parameters for adding a read stream */
-#define NNC_VFS_READER(rs) &nnc__internal_vfs_generator_reader, (rs)
-/** \brief VFS vfile parameters for adding a subview stream copy */
-#define NNC_VFS_SUBVIEW(sv) &nnc__internal_vfs_generator_subview, (sv)
+/** \brief VFS vfile parameters for adding a read stream pointer */
+#define NNC_VFS_READER(rs, flags) &nnc__internal_vfs_generator_reader, (rs), (flags)
+/** \brief VFS vfile parameters for adding a copy of a stream. Only #NNC_VFS_STREAM_FREE_ON_CLOSE a meaningful flag here. */
+#define NNC_VFS_READER_COPY(rs, flags) &nnc__internal_vfs_generator_reader_copy, &(rs), sizeof(rs), (flags)
 /** \brief Identitiy map in a directory link, that is, preserve the names from the filesystem */
 #define nnc_vfs_identity_transform  NULL /* magic from the function itself */
-/** \brief An alternative name for nnc_rstream used in the VFS functions */
-#define nnc_vfs_stream nnc_rstream
 
 typedef void *nnc_vfs_generator_data;
 
 struct nnc_vfs;
 
+typedef struct nnc_vfs_stream {
+	const nnc_rstream_funcs *funcs;
+	nnc_rstream *substream;
+	int flags;
+} nnc_vfs_stream;
+
+/** Flags for VFS streams. */
+enum nnc_vfs_stream_flags {
+	NNC_VFS_STREAM_NONE            = 0, ///< No flags.
+	NNC_VFS_STREAM_RECURSIVE_CLOSE = 1, ///< Call #nnc_rs_close on the substream when the stream is closed.
+	NNC_VFS_STREAM_FREE_ON_CLOSE   = 2, ///< Free the substream pointer on close.
+	NNC_VFS_STREAM_FULL_CLOSE      = NNC_VFS_STREAM_RECURSIVE_CLOSE | NNC_VFS_STREAM_FREE_ON_CLOSE, ///< Both #NNC_VFS_STREAM_RECURSIVE_CLOSE and #NNC_VFS_STREAM_FREE_ON_CLOSE.
+};
+
 typedef struct nnc_vfs_reader_generator {
 	nnc_result (*initialize)(nnc_vfs_generator_data *udata, va_list va);
-	nnc_result (*make_reader)(nnc_vfs_generator_data udata, nnc_vfs_stream **out);
+	nnc_result (*make_reader)(nnc_vfs_generator_data udata, nnc_vfs_stream *out);
 	nnc_u64 (*node_size)(nnc_vfs_generator_data udata);
 	void (*delete_data)(nnc_vfs_generator_data udata);
 } nnc_vfs_reader_generator;
@@ -299,6 +326,16 @@ nnc_result nnc_vfs_init(nnc_vfs *vfs);
  */
 void nnc_vfs_free(nnc_vfs* vfs);
 
+/** \brief      free()s memory in use by the file children of a directory and unlinks them.
+ *  \param dir  Directory to free from.
+ */
+void nnc_vfs_free_files(nnc_vfs_directory_node *dir);
+
+/** \brief      free()s memory in use by the directory children of a directory and unlinks them.
+ *  \param dir  Directory to free from.
+ */
+void nnc_vfs_free_directories(nnc_vfs_directory_node *dir);
+
 /** \brief            Adds a new virtual file to a VFS directory.
  *  \param dir        Directory to add to.
  *  \param vname      The filename the file should have *in the VFS directory*.
@@ -327,12 +364,35 @@ nnc_result nnc_vfs_add_directory(nnc_vfs_directory_node *dir, const char *vname,
  */
 nnc_result nnc_vfs_link_directory(nnc_vfs_directory_node *dir, const char *dirname, char *(*transform)(const char *, void *), void *udata);
 
+/** \brief                     Searches for the directory of a path in a VFS.
+ *  \param root_dir            Directory to start search from.
+ *  \param path                Path to search dirname from.
+ *  \param last_component      Optional pointer to the name of the last path component.
+ *  \param last_component_len  Optional pointer to the length of the last path component.
+ *  \returns                   NULL if the directory was not found.
+ */
+nnc_vfs_directory_node *nnc_vfs_search_dirname(nnc_vfs_directory_node *root_dir, const char *path, const char **last_component, size_t *last_component_len);
+
+/** \brief           Searches for a file in the VFS.
+ *  \param root_dir  Directory to start search in.
+ *  \param name      Pathname to search for.
+ */
+nnc_vfs_file_node *nnc_vfs_file_by_name(nnc_vfs_directory_node *root_dir, const char *name);
+
+/** \brief           Searches for a directory in the VFS.
+ *  \param root_dir  Directory to start search in.
+ *  \param name      Pathname to search for.
+ */
+nnc_vfs_directory_node *nnc_vfs_directory_by_name(nnc_vfs_directory_node *root_dir, const char *name);
+
+void nnc_vfs_open_stream(nnc_vfs_stream *self, nnc_rstream *substream, int flags);
+
 /** \brief       Open a node in the VFS for reading.
  *  \param node  The node to open
  *  \param res   The output read stream.
  *  \note        The output read stream must be freed up with #nnc_vfs_close_node.
  */
-nnc_result nnc_vfs_open_node(nnc_vfs_file_node *node, nnc_vfs_stream **res);
+nnc_result nnc_vfs_open_node(nnc_vfs_file_node *node, nnc_vfs_stream *res);
 
 /** \brief         Close the read stream that is opened by #nnc_vfs_open_node.
  *  \param reader  The stream to close.
@@ -345,7 +405,7 @@ void nnc_vfs_close_node(nnc_vfs_stream *reader);
 nnc_u64 nnc_vfs_node_size(nnc_vfs_file_node *node);
 
 /* \cond INTERNAL */
-extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_subview;
+extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_reader_copy;
 extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_reader;
 extern const nnc_vfs_reader_generator nnc__internal_vfs_generator_file;
 /* \endcond */
