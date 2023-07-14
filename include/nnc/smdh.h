@@ -22,6 +22,10 @@ NNC_BEGIN
 #define NNC_SMDH_RATINGS 0x10
 /** Pack the EULA of an SMDH header into one value for inequality checks. */
 #define NNC_EULA_PACK(smdh) ((smdh).eula_version_major * 0xFF + (smdh).eula_version_minor)
+/** The dimensions (for the x and y axes) of the small SMDH icon. */
+#define NNC_SMDH_ICON_DIM_SMALL 24
+/** The dimensions (for the x and y axes) of the large SMDH icon. */
+#define NNC_SMDH_ICON_DIM_LARGE 48
 
 enum nnc_title_lang {
 	NNC_TITLE_JAPANESE            = 0,  ///< Japanese.
@@ -102,14 +106,54 @@ typedef struct nnc_smdh {
 	nnc_u16 eula_version_major;             ///< EULA major version.
 	nnc_f32 optimal_animation_frame;        ///< Optimal animation default frame for BNR.
 	nnc_u32 cec_id;                         ///< CEC/Streetpass ID.
+	nnc_u16 icon_small[24][24];             ///< Small icon, z-order curve swizzled, little endian.
+	nnc_u16 icon_large[48][48];             ///< Large icon, z-order curve swizzled, little endian.
 } nnc_smdh;
 
-
-/** \brief Read an SMDH from a stream.
+/** \brief       Read an SMDH from a stream.
  *  \param rs    Stream to read SMDH from.
  *  \param smdh  Output SMDH.
+ *  \see         \link swizzle \endlink to unswizzle the icon graphics.
  */
 nnc_result nnc_read_smdh(nnc_rstream *rs, nnc_smdh *smdh);
+
+/** \{
+ *  \anchor swizzle
+ *  \name   (un)swizzling functions.
+ */
+
+/* Should these z-order curve functions be in a separate file?
+ * Should there be big-endian versions of these functions? */
+
+/** \brief       Unswizzles a z-order curve rgb565 (little endian) image to an rgba8 (native endian) image.
+ *  \param inp   Input array, should be at least of size `dim*dim*sizeof(nnc_u16)`.
+ *  \param outp  Output array, should be at least of size `dim*dim*sizeof(nnc_u32)`.
+ *  \param dim   Dimension for both axes.
+ */
+void nnc_unswizzle_zorder_le_rgb565_to_rgba8(nnc_u16 *inp, nnc_u32 *outp, nnc_u8 dim);
+
+/** \brief       Unswizzles a z-order curve rgb565 (little endian) image to an abgr8 (native endian) image.
+ *  \param inp   Input array, should be at least of size `dim*dim*sizeof(nnc_u16)`.
+ *  \param outp  Output array, should be at least of size `dim*dim*sizeof(nnc_u32)`.
+ *  \param dim   Dimension for both axes.
+ */
+void nnc_unswizzle_zorder_le_rgb565_to_abgr8(nnc_u16 *inp, nnc_u32 *outp, nnc_u8 dim);
+
+/** \brief       Swizzles an rgba8 (native endian) image to a z-order curve rgb565 (little endian) image.
+ *  \param inp   Input array, should be at least of size `dim*dim*sizeof(nnc_u32)`.
+ *  \param outp  Output array, should be at least of size `dim*dim*sizeof(nnc_u16)`.
+ *  \param dim   Dimension for both axes.
+ */
+void nnc_swizzle_zorder_rgba8_to_le_rgb565(nnc_u32 *inp, nnc_u16 *outp, nnc_u8 dim);
+
+/** \brief       Swizzles an abgr8 (native endian) image to a z-order curve rgb565 (little endian) image.
+ *  \param inp   Input array, should be at least of size `dim*dim*sizeof(nnc_u32)`.
+ *  \param outp  Output array, should be at least of size `dim*dim*sizeof(nnc_u16)`.
+ *  \param dim   Dimension for both axes.
+ */
+void nnc_swizzle_zorder_abgr8_to_le_rgb565(nnc_u32 *inp, nnc_u16 *outp, nnc_u8 dim);
+
+/** \} */
 
 NNC_END
 #endif
