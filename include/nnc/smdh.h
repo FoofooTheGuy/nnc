@@ -117,6 +117,12 @@ typedef struct nnc_smdh {
  */
 nnc_result nnc_read_smdh(nnc_rstream *rs, nnc_smdh *smdh);
 
+/** \brief       Write an SMDH.
+ *  \param smdh  SMDH to write.
+ *  \param ws    Output write stream.
+ */
+nnc_result nnc_write_smdh(nnc_smdh *smdh, nnc_wstream *ws);
+
 /** \{
  *  \anchor swizzle
  *  \name   (un)swizzling functions.
