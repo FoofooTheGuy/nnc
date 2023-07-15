@@ -1,5 +1,5 @@
 
-/* #if NNC_PLATFORM_UNIX | NNC_PLATFORM_3DS */
+/* #if NNC_PLATFORM_UNIX */
 	#define _LARGEFILE64_SOURCE
 	#define _DEFAULT_SOURCE
 	#define _BSD_SOURCE
@@ -7,7 +7,7 @@
 
 #include "./internal.h"
 
-#if NNC_PLATFORM_UNIX || NNC_PLATFORM_3DS
+#if NNC_PLATFORM_UNIX
 	#include <unistd.h>
 #endif
 
@@ -30,7 +30,7 @@ static result nnc_seek_file_abs(FILE *file, u32 pos, u32 *npos)
 #if NNC_PLATFORM_WINDOWS
 	else
 		res = _fseeki64(file, pos, SEEK_SET);
-#elif NNC_PLATFORM_UNIX || NNC_PLATFORM_3DS
+#elif NNC_PLATFORM_UNIX
 	else /* This should be fine, be sure to test */
 		res = lseek64(fileno(file), pos, SEEK_SET);
 #else
@@ -95,7 +95,7 @@ static u32 get_file_size(FILE *file, u32 seekback)
 	u32 size
 #if NNC_PLATFORM_WINDOWS
 		= _ftelli64(file);
-#elif NNC_PLATFORM_UNIX || NNC_PLATFORM_3DS
+#elif NNC_PLATFORM_UNIX
 		= ftello64(file);
 #else
 		= ftell(file); /* dangerous call */
