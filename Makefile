@@ -1,5 +1,5 @@
 
-SOURCES  := source/stream.c source/exefs.c source/internal.c source/crypto.c source/sigcert.c source/tmd.c source/u128.c source/utf.c source/smdh.c source/romfs.c source/ncch.c source/exheader.c source/cia.c source/ticket.c source/ivfc.c
+SOURCES  := source/stream.c source/exefs.c source/internal.c source/crypto.c source/sigcert.c source/tmd.c source/u128.c source/utf.c source/smdh.c source/romfs.c source/ncch.c source/exheader.c source/cia.c source/ticket.c source/ivfc.c source/swizzle.c
 CFLAGS   ?= -ggdb3 -Wall -Wextra -pedantic
 TARGET   := libnnc.a
 BUILD    ?= build
