@@ -52,7 +52,7 @@ void nnc_cbuf_free(nnc_utf_conversion_buffer *buf);
  *  \param buf   Buffer to operate in.
  *  \param utf8  Input UTF8 string.
  *  \param len   Size of the `utf8` array.
- *  \note        The returned pointer will be changed by subsequent calls to #nnc_cbuf_utf8_to_utf16 and #nnc_cbuf_utf16_to_utf8.
+ *  \note        The returned pointer will be invalidated by subsequent calls to #nnc_cbuf_utf8_to_utf16 and #nnc_cbuf_utf16_to_utf8.
  *  \returns     NULL if the allocation failed.
  */
 nnc_u16 *nnc_cbuf_utf8_to_utf16(nnc_utf_conversion_buffer *buf, const nnc_u8 *utf8, size_t len);
@@ -61,7 +61,7 @@ nnc_u16 *nnc_cbuf_utf8_to_utf16(nnc_utf_conversion_buffer *buf, const nnc_u8 *ut
  *  \param buf    Buffer to operate in.
  *  \param utf16  Input UTF16 string.
  *  \param len    Size of the `utf16` array.
- *  \note         The returned pointer will be changed by subsequent calls to #nnc_cbuf_utf8_to_utf16 and #nnc_cbuf_utf16_to_utf8.
+ *  \note         The returned pointer will be invalidated by subsequent calls to #nnc_cbuf_utf8_to_utf16 and #nnc_cbuf_utf16_to_utf8.
  *  \returns      NULL if the allocation failed.
  */
 nnc_u8 *nnc_cbuf_utf16_to_utf8(nnc_utf_conversion_buffer *buf, const nnc_u16 *utf16, size_t len);

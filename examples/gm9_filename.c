@@ -1,6 +1,6 @@
 /** \example gm9_filename.c
  *  \brief   This example shows how to get all necessary data
- *           from a CIA to generate a Gomode9 filename.
+ *           from a CIA to generate a Godmode9 filename.
  */
 
 #include <nnc/stream.h>

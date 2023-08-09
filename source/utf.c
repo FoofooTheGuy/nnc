@@ -123,6 +123,7 @@ size_t nnc_utf8_to_utf16(u16 *out, size_t outlen, const u8 *in, size_t inlen)
 			u32 cp = ((p1 & 0x1F) << 6)
 			       | (in[i + 1] & 0x3F);
 			write_utf16(out, outlen, &outptr, cp);
+			i += 1;
 			continue;
 		}
 		INCCHK(2);
@@ -132,6 +133,7 @@ size_t nnc_utf8_to_utf16(u16 *out, size_t outlen, const u8 *in, size_t inlen)
 			       | ((in[i + 1] & 0x3F) << 6)
 			       | (in[i + 2] & 0x3F);
 			write_utf16(out, outlen, &outptr, cp);
+			i += 2;
 			continue;
 		}
 		INCCHK(3);
@@ -142,6 +144,7 @@ size_t nnc_utf8_to_utf16(u16 *out, size_t outlen, const u8 *in, size_t inlen)
 			       | ((in[i + 2] & 0x3F) << 6)
 			       | (in[i + 3] & 0x3F);
 			write_utf16(out, outlen, &outptr, cp);
+			i += 3;
 			continue;
 		}
 #undef INCCHK

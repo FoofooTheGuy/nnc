@@ -1,5 +1,6 @@
 
 #include <nnc/smdh.h>
+#include <assert.h>
 #include <string.h>
 #include "./internal.h"
 
