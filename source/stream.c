@@ -872,7 +872,7 @@ static nnc_result nnc_rgen_make_reader(nnc_vfs_generator_data udata, nnc_vfs_str
 	return nnc_rs_seek_abs(data->substream, 0);
 }
 
-static size_t nnc_rgen_node_size(nnc_vfs_generator_data udata)
+static u64 nnc_rgen_node_size(nnc_vfs_generator_data udata)
 {
 	struct rgen_data *data = (struct rgen_data *) udata;
 	return nnc_rs_size(data->substream);
