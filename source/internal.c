@@ -159,7 +159,7 @@ u32 nnc_pow2(u32 exp)
 	#include <unistd.h>
 	#define UNIX_LIKE
 	#define can_read(f) access(f, R_OK) == 0
-#elif NNC_PLATFORM_UNIX
+#elif NNC_PLATFORM_WINDOWS
 	#include <io.h>
 	#define can_read(f) _access_s(f, 4) == 0
 #endif

@@ -96,17 +96,17 @@
 		do_with_alpha(a = FIX_COLOUR_DEPTH(in_colour >> 0 & 0xFF, 8, input_alpha_bitlen);)                                                                                      \
 		swizzle_colours                                                                                                                                                         \
 	)                                                                                                                                                                         \
-	DEFINE_SWIZZLE_FUNC(le##input_format_name##_to_be_rgba8, u##input_total_bitlen, u32, LE##input_total_bitlen, u8 r; u8 g; u8 b; u8 a = 0xFF;,                              \
+	DEFINE_UNSWIZZLE_FUNC(le_##input_format_name##_to_be_rgba8, u##input_total_bitlen, u32, LE##input_total_bitlen, u8 r; u8 g; u8 b; u8 a = 0xFF;,                              \
 		unswizzle_colours                                                                                                                                                       \
 		out_colour = BE32((r << 24) | (g << 16) | (b << 8) | (a << 0));                                                                                                         \
 	)                                                                                                                                                                         \
 	DEFINE_SWIZZLE_FUNC(be_rgba8_to_le_##input_format_name, u32, u##input_total_bitlen, LE##input_total_bitlen, u8 r; u8 g; u8 b; do_with_alpha(u8 a;),                       \
+		in_colour = BE32(in_colour);                                                                                                                                          \
 		r = FIX_COLOUR_DEPTH(in_colour >> 24 & 0xFF, 8, input_red_bitlen);                                                                                                      \
 		g = FIX_COLOUR_DEPTH(in_colour >> 16 & 0xFF, 8, input_green_bitlen);                                                                                                    \
 		b = FIX_COLOUR_DEPTH(in_colour >> 8  & 0xFF, 8, input_blue_bitlen);                                                                                                     \
 		do_with_alpha(a = FIX_COLOUR_DEPTH(in_colour >> 0 & 0xFF, 8, input_alpha_bitlen);)                                                                                      \
 		swizzle_colours                                                                                                                                                         \
-		out_colour = BE32(out_colour);                                                                                                                                          \
 	)                                                                                                                                                                         \
 	DEFINE_UNSWIZZLE_FUNC_EX(le_##input_format_name##_to_be_rgb8, u##input_total_bitlen, u8, LE##input_total_bitlen,                                                          \
 		u8 r; u8 g; u8 b; u8 a = 0xFF;                                                                                                                                          \
