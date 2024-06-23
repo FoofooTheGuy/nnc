@@ -3,6 +3,7 @@ libnnc.a
 libnnc.so
 data/
 tags
-build/
+**/build
 html/
 bin/
+*.user*
