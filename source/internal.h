@@ -80,6 +80,9 @@ nnc_u64 nnc_bswap64(nnc_u64 a);
 
 #if defined(_WIN32) /* || defined(__MINGW32__) || defined(__CYGWIN__) // though these are technically windows, winapi should not be used */
 	#define NNC_PLATFORM_WINDOWS 1
+#endif
+#if defined(__APPLE__)
+	#define NNC_PLATFORM_APPLE 1
 #elif defined(__unix__) || defined(__linux__) || defined(__APPLE__)
 	#define NNC_PLATFORM_UNIX 1
 #elif defined(_3DS) || defined(__3DS__)

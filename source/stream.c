@@ -30,6 +30,10 @@ static result nnc_seek_file_abs(FILE *file, u32 pos, u32 *npos)
 #if NNC_PLATFORM_WINDOWS
 	else
 		res = _fseeki64(file, pos, SEEK_SET);
+#endif
+#if NNC_PLATFORM_APPLE
+	else /* This should be fine, be sure to test */
+		res = lseek(fileno(file), pos, SEEK_SET);
 #elif NNC_PLATFORM_UNIX
 	else /* This should be fine, be sure to test */
 		res = lseek64(fileno(file), pos, SEEK_SET);
@@ -95,6 +99,9 @@ static u32 get_file_size(FILE *file, u32 seekback)
 	u32 size
 #if NNC_PLATFORM_WINDOWS
 		= _ftelli64(file);
+#endif
+#if NNC_PLATFORM_APPLE
+		= ftello(file);
 #elif NNC_PLATFORM_UNIX
 		= ftello64(file);
 #else
