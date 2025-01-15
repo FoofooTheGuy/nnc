@@ -33,7 +33,12 @@ static result nnc_seek_file_abs(FILE *file, u32 pos, u32 *npos)
 #endif
 #if NNC_PLATFORM_APPLE
 	else /* This should be fine, be sure to test */
-		res = lseek(fileno(file), pos, SEEK_SET);
+	{
+		/* ugly hack */
+		res = fseek(file, INT32_MAX, SEEK_SET);
+		if(res == 0)
+			res = fseek(file, pos - INT32_MAX, SEEK_CUR);
+	}
 #elif NNC_PLATFORM_UNIX
 	else /* This should be fine, be sure to test */
 		res = lseek64(fileno(file), pos, SEEK_SET);
