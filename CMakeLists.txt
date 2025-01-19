@@ -34,7 +34,10 @@ add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME} PUBLIC MbedTLS::mbedcrypto)
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_11)
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
+# Set default compile flags for GCC (https://stackoverflow.com/a/2274040)
+if(CMAKE_COMPILER_IS_GNUCXX)
+	target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
+endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_include_directories(${PROJECT_NAME} SYSTEM INTERFACE
