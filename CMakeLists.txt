@@ -8,6 +8,15 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+#https://stackoverflow.com/a/41361741
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+
 # TODO: provide FindMbedTLS ?
 find_package(MbedTLS)
 
@@ -35,9 +44,9 @@ target_link_libraries(${PROJECT_NAME} PUBLIC MbedTLS::mbedcrypto)
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_11)
 # Set default compile flags for GCC (https://stackoverflow.com/a/2274040)
-if(CMAKE_COMPILER_IS_GNUCXX)
-	target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
-endif()
+#if(CMAKE_COMPILER_IS_GNUCXX)
+#	target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
+#endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_include_directories(${PROJECT_NAME} SYSTEM INTERFACE
