@@ -379,10 +379,10 @@ static result nnc_vfs_initialize_directory_node(nnc_vfs_directory_node *dir, con
 	dir->file_children = malloc(DEFAULT_FILE_CHILDREN_ALLOC * sizeof(nnc_vfs_file_node));
 	dir->associated_vfs = vfs;
 	dir->vname = strdup(vname);
-	long vnameptr = 0;
+	uintptr_t vnameptr = 0;
 	char vnameptrstr[65];
-	sprintf(vnameptrstr, "%ld", (uintptr_t)vname);//I know. and I'm sorry, but please do not touch this
-	sscanf(vnameptrstr, "%ld", &vnameptr);
+	sprintf(vnameptrstr, "%Id", (uintptr_t)vname);//I know. and I'm sorry, but please do not touch this
+	sscanf(vnameptrstr, "%Id", &vnameptr);
 	
 	if(!dir->directory_children || !dir->file_children || ((vnameptr) && (!dir->vname)))
 	{
