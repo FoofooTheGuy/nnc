@@ -31,7 +31,7 @@ test: $(TARGET) $(TEST_TARGET)
 shared:
 	$(MAKE) CFLAGS="$(CFLAGS) -fPIC" BUILD="$(BUILD)/PIC" $(SO_TARGET)
 static: $(TARGET)
-examples: bin/ bin/gm9_filename bin/determine_legitimacy bin/extract_cdn_contents bin/replace_cia_romfs
+examples: bin/ bin/gm9_filename bin/determine_legitimacy bin/extract_cdn_contents bin/replace_cia_romfs bin/extract_romfs_exefs bin/replace_cia_romfs_exefs
 clean:
 	rm -rf $(BUILD) $(TARGET) $(SO_TARGET)
 install: static shared
@@ -69,4 +69,8 @@ bin/determine_legitimacy: examples/determine_legitimacy.c $(TARGET)
 bin/extract_cdn_contents: examples/extract_cdn_contents.c $(TARGET)
 	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) $(LIBS)
 bin/replace_cia_romfs: examples/replace_cia_romfs.c $(TARGET)
+	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) $(LIBS)
+bin/replace_cia_romfs_exefs: examples/replace_cia_romfs_exefs.c $(TARGET)
+	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) $(LIBS)
+bin/extract_romfs_exefs: examples/extract_romfs_exefs.c $(TARGET)
 	$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) $(LIBS)
